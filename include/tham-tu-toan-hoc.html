@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thám Tử Hình Học - Logic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
+        
+        body { font-family: 'Nunito', sans-serif; background-color: #f0fdfa; user-select: none; }
+        .game-card { background: white; border-radius: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); border: 4px solid #99f6e4; max-width: 800px; margin: 0 auto; }
+
+        /* --- SHAPES --- */
+        .shape { display: inline-block; vertical-align: middle; transition: transform 0.2s; filter: drop-shadow(0 4px 2px rgba(0,0,0,0.1)); }
+        
+        .shape-square {
+            width: 40px; height: 40px;
+            background-color: #ef4444; border-radius: 8px;
+            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+        }
+
+        .shape-circle {
+            width: 40px; height: 40px;
+            background-color: #3b82f6; border-radius: 50%;
+            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+        }
+
+        .shape-triangle {
+            width: 0; height: 0;
+            border-left: 22px solid transparent;
+            border-right: 22px solid transparent;
+            border-bottom: 38px solid #eab308;
+            transform: translateY(-4px);
+        }
+
+        /* --- EQUATIONS --- */
+        .equation-row {
+            display: flex; align-items: center; justify-content: center;
+            gap: 10px; margin-bottom: 10px;
+            background: #ccfbf1; padding: 10px; border-radius: 12px;
+            font-size: 28px; font-weight: 900; color: #115e59;
+            border: 2px solid #14b8a6;
+        }
+
+        /* --- ANSWER CARDS --- */
+        .answer-card {
+            background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 16px;
+            padding: 12px; display: flex; flex-direction: column; align-items: center;
+            transition: all 0.3s;
+        }
+        .card-correct { background: #dcfce7; border-color: #22c55e; }
+        .card-wrong { background: #fee2e2; border-color: #ef4444; }
+
+        .number-btn {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            background: white; border: 2px solid #cbd5e1;
+            border-radius: 8px; color: #64748b; font-weight: 800; font-size: 18px;
+            cursor: pointer; transition: all 0.1s; box-shadow: 0 3px 0 #94a3b8;
+        }
+        .number-btn:hover { background: #f1f5f9; transform: translateY(-1px); }
+        .number-btn:active { transform: translateY(3px); box-shadow: none; }
+        
+        .number-btn.selected {
+            background: #0d9488; color: white; border-color: #0f766e;
+            box-shadow: 0 3px 0 #115e59;
+        }
+        .number-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* --- DIFFICULTY TABS --- */
+        .diff-btn {
+            padding: 8px 16px; font-weight: 800; color: #5eead4; 
+            border-bottom: 4px solid transparent; transition: all 0.2s;
+            opacity: 0.6;
+        }
+        .diff-btn:hover { background: #f0fdfa; }
+        .diff-btn.active {
+            color: #0d9488; border-color: #0d9488; opacity: 1; background: #ccfbf1;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .op-text { color: #9ca3af; font-weight: 800; font-size: 24px;}
+        .res-text { color: #0d9488; font-weight: 900; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="flex gap-2 mb-0 bg-white p-1 rounded-t-xl shadow-sm border-x-4 border-t-4 border-[#99f6e4] border-b-0 w-full max-w-[800px] justify-center">
+        <button onclick="setDifficulty('EASY')" id="diff-EASY" class="diff-btn active">Dễ (Tổng &le; 10)</button>
+        <button onclick="setDifficulty('MEDIUM')" id="diff-MEDIUM" class="diff-btn">Vừa (Tổng &le; 20)</button>
+        <button onclick="setDifficulty('HARD')" id="diff-HARD" class="diff-btn">Khó (Tổng &le; 50)</button>
+    </div>
+
+    <div class="game-card w-full p-6 text-center border-t-0 rounded-t-none mt-0">
+        
+        <div class="mb-6">
+            <h1 class="text-3xl font-extrabold text-teal-700 mb-2">Thám Tử Hình Học</h1>
+            <div id="diff-label" class="inline-block px-4 py-1 bg-teal-50 rounded-full text-teal-600 text-sm font-bold border border-teal-100">
+                Cấp độ: Dễ
+            </div>
+        </div>
+
+        <div id="clues-container" class="mb-8 space-y-3"></div>
+
+        <div class="mb-2 text-left px-2">
+            <h3 class="text-teal-800 font-bold text-lg mb-2 flex items-center gap-2">
+                👇 Chọn giá trị đúng cho mỗi hình:
+            </h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="answer-card" id="card-square">
+                <div class="mb-2 transform scale-125"><div class="shape shape-square"></div></div>
+                <div class="flex gap-2 flex-wrap justify-center" id="options-square"></div>
+            </div>
+
+            <div class="answer-card" id="card-circle">
+                <div class="mb-2 transform scale-125"><div class="shape shape-circle"></div></div>
+                <div class="flex gap-2 flex-wrap justify-center" id="options-circle"></div>
+            </div>
+
+            <div class="answer-card" id="card-triangle">
+                <div class="mb-2 transform scale-125"><div class="shape shape-triangle"></div></div>
+                <div class="flex gap-2 flex-wrap justify-center" id="options-triangle"></div>
+            </div>
+        </div>
+
+        <div id="message" class="h-10 flex items-center justify-center text-xl font-bold mb-4"></div>
+
+        <div class="flex gap-4 justify-center">
+            <button onclick="checkResult()" id="btn-check" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-10 rounded-xl shadow-[0_4px_0_rgb(17,94,89)] active:shadow-none active:translate-y-1 transition-all text-lg">
+                Kiểm Tra
+            </button>
+            <button onclick="initGame()" id="btn-new" class="hidden bg-white border-2 border-teal-200 text-teal-600 hover:bg-teal-50 font-bold py-3 px-8 rounded-xl text-lg transition-colors">
+                Bài Mới ➜
+            </button>
+        </div>
+    </div>
+
+<script>
+    // --- CẤU HÌNH ĐỘ KHÓ ---
+    const CONFIG = {
+        EASY:   { maxVal: 6,  label: "Dễ (Phạm vi 12)" }, // Tăng nhẹ maxVal lên 6 để dễ chọn 3 số khác nhau
+        MEDIUM: { maxVal: 12, label: "Vừa (Phạm vi 24)" },
+        HARD:   { maxVal: 25, label: "Khó (Phạm vi 50)" }
+    };
+
+    let currentDiff = 'EASY';
+    let values = { square: 0, circle: 0, triangle: 0 };
+    let userPicks = { square: null, circle: null, triangle: null };
+
+    // --- HTML GENERATORS ---
+    const SHAPES = {
+        square: `<div class="shape shape-square"></div>`,
+        circle: `<div class="shape shape-circle"></div>`,
+        triangle: `<div class="shape shape-triangle"></div>`
+    };
+
+    function setDifficulty(diff) {
+        currentDiff = diff;
+        document.querySelectorAll('.diff-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`diff-${diff}`).classList.add('active');
+        document.getElementById('diff-label').innerText = `Cấp độ: ${CONFIG[diff].label}`;
+        initGame();
+    }
+
+    // --- INIT GAME ---
+    function initGame() {
+        userPicks = { square: null, circle: null, triangle: null };
+        document.getElementById('message').innerHTML = '';
+        document.getElementById('btn-check').classList.remove('hidden');
+        document.getElementById('btn-new').classList.add('hidden');
+        
+        ['square', 'circle', 'triangle'].forEach(type => {
+            document.getElementById(`card-${type}`).className = 'answer-card';
+        });
+
+        const max = CONFIG[currentDiff].maxVal;
+        
+        // --- LOGIC SINH SỐ MỚI (BẮT BUỘC KHÁC NHAU) ---
+        
+        // 1. Vuông
+        values.square = Math.floor(Math.random() * max) + 1;
+
+        // 2. Tròn (Khác Vuông)
+        do {
+            values.circle = Math.floor(Math.random() * max) + 1;
+        } while (values.circle === values.square);
+
+        // 3. Tam Giác (Khác Vuông và Khác Tròn)
+        do {
+            values.triangle = Math.floor(Math.random() * max) + 1;
+        } while (values.triangle === values.square || values.triangle === values.circle);
+
+        // --- RENDER ---
+        const container = document.getElementById('clues-container');
+        container.innerHTML = '';
+        
+        // Gợi ý 1: 🟥 + 🟥 = ? (Tìm 🟥)
+        addEquation(container, [SHAPES.square, SHAPES.square], values.square + values.square);
+        
+        // Gợi ý 2: 🟥 + 🔵 = ? (Tìm 🔵)
+        addEquation(container, [SHAPES.square, SHAPES.circle], values.square + values.circle);
+        
+        // Gợi ý 3: 🔵 + 🔺 = ? (Tìm 🔺)
+        addEquation(container, [SHAPES.circle, SHAPES.triangle], values.circle + values.triangle);
+
+        renderOptionButtons('square', values.square);
+        renderOptionButtons('circle', values.circle);
+        renderOptionButtons('triangle', values.triangle);
+    }
+
+    function addEquation(container, shapesArr, result) {
+        const div = document.createElement('div');
+        div.className = 'equation-row';
+        div.innerHTML = `
+            ${shapesArr[0]} 
+            <span class="op-text">+</span> 
+            ${shapesArr[1]} 
+            <span class="op-text">=</span> 
+            <span class="res-text">${result}</span>
+        `;
+        container.appendChild(div);
+    }
+
+    function renderOptionButtons(type, correctVal) {
+        const container = document.getElementById(`options-${type}`);
+        container.innerHTML = '';
+        
+        let options = new Set();
+        options.add(correctVal);
+
+        let attempts = 0;
+        while(options.size < 6 && attempts < 50) {
+            attempts++;
+            let offset = Math.floor(Math.random() * 11) - 5; 
+            let val = correctVal + offset;
+            
+            // Đảm bảo số dương và khác đáp án đúng
+            if (val > 0 && val !== correctVal) {
+                options.add(val);
+            }
+        }
+
+        let optionsArr = Array.from(options).sort(() => Math.random() - 0.5);
+
+        optionsArr.forEach(num => {
+            const btn = document.createElement('button');
+            btn.className = 'number-btn';
+            btn.innerText = num;
+            btn.onclick = () => selectAnswer(type, num, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function selectAnswer(type, num, btnElement) {
+        userPicks[type] = num;
+        const container = document.getElementById(`options-${type}`);
+        Array.from(container.children).forEach(b => b.classList.remove('selected'));
+        btnElement.classList.add('selected');
+        playSound('pop');
+    }
+
+    function checkResult() {
+        if (!userPicks.square || !userPicks.circle || !userPicks.triangle) {
+            const msg = document.getElementById('message');
+            msg.innerHTML = `<span class="text-orange-500">Bé ơi, chọn hết 3 hình nhé! 👇</span>`;
+            playSound('err');
+            return;
+        }
+
+        let correctCount = 0;
+        checkOneShape('square');
+        checkOneShape('circle');
+        checkOneShape('triangle');
+
+        function checkOneShape(type) {
+            const card = document.getElementById(`card-${type}`);
+            if (userPicks[type] === values[type]) {
+                correctCount++;
+                card.classList.add('card-correct');
+                card.classList.remove('card-wrong');
+            } else {
+                card.classList.add('card-wrong');
+                card.classList.remove('card-correct');
+            }
+        }
+
+        const msg = document.getElementById('message');
+        if (correctCount === 3) {
+            msg.innerHTML = `<span class="text-green-600">🎉 Chính xác! Bé quá xuất sắc!</span>`;
+            playSound('win');
+            document.getElementById('btn-check').classList.add('hidden');
+            document.getElementById('btn-new').classList.remove('hidden');
+            document.querySelectorAll('.number-btn').forEach(b => b.disabled = true);
+        } else {
+            msg.innerHTML = `<span class="text-red-500">🤔 Chưa đúng, bé thử tính lại xem!</span>`;
+            playSound('err');
+        }
+    }
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+
+        if (type === 'win') {
+            o.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+            o.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            o.start(); o.stop(audioCtx.currentTime + 0.4);
+        } else if (type === 'pop') {
+            o.frequency.setValueAtTime(800, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            o.start(); o.stop(audioCtx.currentTime + 0.05);
+        } else {
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(150, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            o.start(); o.stop(audioCtx.currentTime + 0.3);
+        }
+    }
+
+    // Start
+    initGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nhà Máy Tách Số (Bản Chọn)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #ecfeff; /* Xanh cyan nhạt */
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 0 #cffafe;
+            border: 4px solid #ccfbf1;
+        }
+
+        /* Ô trống để điền (Slot) */
+        .slot-box {
+            width: 80px;
+            height: 70px;
+            border: 3px dashed #cbd5e1; /* Nét đứt khi trống */
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0891b2;
+            background-color: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        /* Khi ô đã có số */
+        .slot-filled {
+            border: 3px solid #22d3ee;
+            background-color: #e0f2fe;
+            color: #0e7490;
+            box-shadow: 0 4px 0 #67e8f9;
+            transform: translateY(-2px);
+            border-style: solid;
+        }
+
+        /* Bong bóng lựa chọn (Option Bubble) */
+        .option-bubble {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            padding: 12px 20px;
+            min-width: 70px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 50px; /* Hình viên thuốc/tròn */
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #475569;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #cbd5e1;
+            transition: all 0.1s;
+            margin: 6px;
+        }
+
+        .option-bubble:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #cbd5e1;
+        }
+        
+        /* Hiệu ứng khi chọn đúng/sai */
+        .slot-correct {
+            background-color: #dcfce7 !important;
+            border-color: #22c55e !important;
+            color: #15803d !important;
+            box-shadow: 0 4px 0 #86efac !important;
+        }
+        .slot-wrong {
+            background-color: #fee2e2 !important;
+            border-color: #ef4444 !important;
+            color: #b91c1c !important;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        /* Ẩn bong bóng đã chọn */
+        .bubble-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0);
+        }
+
+        .plus-sign {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #0891b2;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-3">
+
+    <div class="game-card w-full max-w-2xl p-4 md:p-8 text-center">
+        
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-extrabold text-cyan-700">Tách Số Vui Nhộn</h1>
+            <select id="difficulty" onchange="game.init()" class="bg-white border-2 border-cyan-200 text-cyan-700 font-bold py-1 px-3 rounded-lg text-sm">
+                <option value="100">Hàng Trăm</option>
+                <option value="1000">Hàng Nghìn</option>
+            </select>
+        </div>
+
+        <div class="mb-8">
+            <p class="text-cyan-400 font-bold text-xs uppercase mb-1">Số cần tách</p>
+            <div id="target-number" class="text-6xl font-black text-cyan-600 tracking-wider drop-shadow-sm">
+                000
+            </div>
+        </div>
+
+        <div class="bg-slate-50 rounded-2xl p-4 border-2 border-slate-100 mb-6">
+            <div id="slots-container" class="flex flex-wrap justify-center items-center gap-2">
+                </div>
+            <p class="text-xs text-slate-400 font-bold mt-4">Bấm vào ô số để bỏ chọn</p>
+        </div>
+
+        <div class="mb-8">
+            <p class="text-slate-400 font-bold text-sm mb-2">Chọn các mảnh ghép đúng:</p>
+            <div id="options-container" class="flex flex-wrap justify-center min-h-[100px]">
+                </div>
+        </div>
+
+        <div class="flex justify-center gap-3">
+            <button onclick="game.check()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_0_#15803d] active:shadow-none active:translate-y-[4px] transition-all text-xl">
+                Kiểm Tra
+            </button>
+            <button onclick="game.init()" class="bg-white border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold py-3 px-6 rounded-xl transition-all">
+                Tiếp Theo ➜
+            </button>
+        </div>
+        
+        <p id="msg" class="mt-4 h-6 text-lg font-bold text-cyan-600"></p>
+    </div>
+
+<script>
+    class NumberSplitGame {
+        constructor() {
+            this.targetEl = document.getElementById('target-number');
+            this.slotsContainer = document.getElementById('slots-container');
+            this.optionsContainer = document.getElementById('options-container');
+            this.diffSelect = document.getElementById('difficulty');
+            this.msg = document.getElementById('msg');
+            
+            this.currentNumber = 0;
+            this.parts = []; // Chứa đáp án đúng [400, 50, 7]
+            this.userAnswers = []; // Chứa đáp án người dùng điền [400, null, null]
+            this.optionPool = []; // Chứa tất cả option (đúng + sai)
+
+            this.init();
+        }
+
+        init() {
+            this.msg.innerHTML = "";
+            const mode = parseInt(this.diffSelect.value);
+            
+            // 1. Sinh số ngẫu nhiên
+            if (mode === 100) this.currentNumber = Math.floor(Math.random() * 900) + 100;
+            else this.currentNumber = Math.floor(Math.random() * 9000) + 1000;
+
+            this.targetEl.textContent = this.currentNumber;
+
+            // 2. Tính toán các phần tử đúng (Place Values)
+            // VD: 457 -> ['4', '5', '7'] -> [400, 50, 7]
+            const strNum = this.currentNumber.toString();
+            this.parts = strNum.split('').map((digit, i) => {
+                const power = strNum.length - 1 - i;
+                return parseInt(digit) * Math.pow(10, power);
+            });
+
+            // Reset mảng câu trả lời người dùng
+            this.userAnswers = new Array(this.parts.length).fill(null);
+
+            // 3. Render Slots (Ô trống)
+            this.renderSlots();
+
+            // 4. Sinh Options (Bong bóng)
+            this.generateOptions();
+        }
+
+        renderSlots() {
+            this.slotsContainer.innerHTML = '';
+            this.userAnswers.forEach((val, index) => {
+                // Tạo ô slot
+                const slot = document.createElement('div');
+                
+                if (val === null) {
+                    slot.className = 'slot-box';
+                    slot.textContent = '?';
+                } else {
+                    slot.className = 'slot-box slot-filled';
+                    slot.textContent = val;
+                    // Bấm vào ô đã điền thì trả lại kho
+                    slot.onclick = () => this.removeAnswer(index, val);
+                }
+
+                this.slotsContainer.appendChild(slot);
+
+                // Thêm dấu cộng
+                if (index < this.userAnswers.length - 1) {
+                    const plus = document.createElement('span');
+                    plus.className = 'plus-sign';
+                    plus.textContent = '+';
+                    this.slotsContainer.appendChild(plus);
+                }
+            });
+        }
+
+        generateOptions() {
+            this.optionsContainer.innerHTML = '';
+            this.optionPool = [];
+
+            // A. Thêm các đáp án ĐÚNG vào pool
+            this.parts.forEach(p => this.optionPool.push({ val: p, id: Math.random() }));
+
+            // B. Thêm các đáp án SAI (Distractors) để gây nhiễu
+            // Chiến thuật tạo số nhiễu: Sai hàng đơn vị/chục.
+            // VD: Đáp án là 50 -> Tạo thêm 5, 500.
+            this.parts.forEach(p => {
+                if (p === 0) {
+                    // Nếu là số 0, thêm số 10 hoặc 1
+                    this.optionPool.push({ val: 10, id: Math.random() });
+                } else {
+                    // Nếu p = 400 -> thêm 40 hoặc 4
+                    if (p >= 10) this.optionPool.push({ val: p / 10, id: Math.random() });
+                    // Nếu p = 5 -> thêm 50
+                    if (p < 1000) this.optionPool.push({ val: p * 10, id: Math.random() });
+                }
+            });
+
+            // C. Xáo trộn pool
+            this.optionPool.sort(() => Math.random() - 0.5);
+
+            // D. Render ra màn hình
+            this.optionPool.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-bubble hover:bg-cyan-50 hover:border-cyan-200';
+                btn.textContent = opt.val;
+                btn.id = `opt-${opt.id}`; // ID để ẩn/hiện
+                
+                btn.onclick = () => this.selectOption(opt);
+                this.optionsContainer.appendChild(btn);
+            });
+        }
+
+        selectOption(opt) {
+            // Tìm ô trống đầu tiên
+            const emptyIndex = this.userAnswers.findIndex(x => x === null);
+            
+            if (emptyIndex !== -1) {
+                // Điền vào ô trống
+                this.userAnswers[emptyIndex] = opt.val;
+                
+                // Ẩn bong bóng này đi (visual feedback)
+                const btn = document.getElementById(`opt-${opt.id}`);
+                if(btn) btn.classList.add('bubble-hidden');
+
+                // Render lại slots
+                this.renderSlots();
+            } else {
+                // Đã đầy ô -> Rung lắc nhẹ báo hiệu (Optional)
+            }
+        }
+
+        removeAnswer(index, val) {
+            // Xóa giá trị tại slot
+            this.userAnswers[index] = null;
+            
+            // Tìm option tương ứng trong pool để hiện lại
+            // Cần tìm đúng cái bong bóng có giá trị đó mà đang bị ẩn
+            // (Logic đơn giản: Hiện lại tất cả bong bóng có giá trị val mà đang ẩn, 
+            // nhưng chỉ hiện 1 cái thôi để tránh bug nếu có 2 số giống nhau)
+            
+            // Ở đây ta duyệt UI để tìm nút đang ẩn có text trùng khớp
+            const hiddenBtns = Array.from(this.optionsContainer.querySelectorAll('.bubble-hidden'));
+            const matchBtn = hiddenBtns.find(b => parseInt(b.textContent) === val);
+            
+            if(matchBtn) {
+                matchBtn.classList.remove('bubble-hidden');
+            }
+
+            this.renderSlots();
+            this.msg.textContent = "";
+        }
+
+        check() {
+            // Kiểm tra xem đã điền hết chưa
+            if (this.userAnswers.includes(null)) {
+                this.msg.innerHTML = "<span class='text-orange-500'>Bé hãy điền đầy đủ các ô trống nhé!</span>";
+                return;
+            }
+
+            let isCorrect = true;
+            const slots = this.slotsContainer.querySelectorAll('.slot-box');
+
+            this.userAnswers.forEach((val, i) => {
+                // So sánh giá trị điền vào với giá trị đúng (this.parts)
+                // Lưu ý: Bài toán yêu cầu đúng vị trí (400 + 50 + 7) 
+                // hay chỉ cần tổng đúng (7 + 400 + 50)?
+                // Thông thường dạy cấu tạo số thì phải đúng thứ tự Hàng Trăm + Chục + Đơn vị.
+                
+                if (val === this.parts[i]) {
+                    slots[i].classList.add('slot-correct');
+                } else {
+                    slots[i].classList.add('slot-wrong');
+                    isCorrect = false;
+                }
+            });
+
+            if (isCorrect) {
+                this.msg.innerHTML = "<span class='text-green-600'>Chính xác! Bé quá thông minh! 🌟</span>";
+                // Hiệu ứng pháo giấy hoặc âm thanh ở đây
+            } else {
+                this.msg.innerHTML = "<span class='text-red-500'>Có chỗ chưa đúng, thử sắp xếp lại nhé!</span>";
+                // Tự động xóa trạng thái sai sau 1s
+                setTimeout(() => {
+                    slots.forEach(s => s.classList.remove('slot-wrong'));
+                }, 1500);
+            }
+        }
+    }
+
+    const game = new NumberSplitGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bài Toán Đóng Gói</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #fff1f2; /* Hồng phấn nhạt */
+            user-select: none;
+        }
+
+        /* Khu vực chứa kẹo rời */
+        .loose-area {
+            min-height: 120px;
+            background-color: white;
+            border: 3px dashed #f472b6;
+            border-radius: 1rem;
+            transition: all 0.3s;
+        }
+
+        /* Cái túi/hộp */
+        .container-box {
+            width: 100px;
+            height: 120px;
+            background-color: #fce7f3;
+            border: 4px solid #db2777;
+            border-radius: 0 0 1rem 1rem; /* Bo tròn đáy giống cái túi */
+            position: relative;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-end;
+            padding: 8px;
+            gap: 2px;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Nhãn số thứ tự túi */
+        .bag-label {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #db2777;
+            color: white;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* Viên kẹo/Vật phẩm */
+        .item {
+            font-size: 2rem;
+            line-height: 1;
+            transition: all 0.5s ease-in-out;
+            animation: dropIn 0.4s;
+        }
+
+        /* Animation khi di chuyển */
+        .item-moving {
+            transform: scale(0) rotate(360deg);
+            opacity: 0;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes dropIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border-4 border-pink-200 overflow-hidden">
+        
+        <div class="bg-pink-50 p-6 border-b-2 border-pink-100">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-pink-700 text-center mb-4">Đóng Gói Kẹo Ngọt 🍬</h1>
+            <div class="bg-white p-4 rounded-xl border-2 border-pink-300 text-lg md:text-xl text-gray-700 font-medium leading-relaxed">
+                <p>
+                    Có <span id="total-items-display" class="font-bold text-pink-600 text-2xl">22</span> cái kẹo. 
+                    Mỗi túi đựng được nhiều nhất <span id="capacity-display" class="font-bold text-pink-600 text-2xl">4</span> cái.
+                </p>
+                <p class="mt-2 text-pink-800 font-bold">
+                    Hỏi cần ÍT NHẤT bao nhiêu túi để đựng hết số kẹo?
+                </p>
+            </div>
+        </div>
+
+        <div class="p-6 bg-pink-50/50">
+            
+            <div class="mb-2 flex justify-between items-end">
+                <span class="text-gray-500 font-bold text-sm uppercase">Kẹo chưa đóng gói: <span id="remaining-count">0</span></span>
+                <button id="pack-btn" onclick="packItems()" class="bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition-transform active:scale-95 flex items-center gap-2 animate-pulse">
+                    👇 Bỏ vào túi
+                </button>
+            </div>
+            
+            <div id="loose-area" class="loose-area flex flex-wrap gap-2 p-4 mb-8 justify-center items-center">
+                </div>
+
+            <div class="border-t-2 border-pink-200 pt-4">
+                <span class="text-gray-500 font-bold text-sm uppercase block mb-4">Các túi đã dùng:</span>
+                <div id="bags-container" class="flex flex-wrap gap-6 justify-center min-h-[140px]">
+                    </div>
+            </div>
+
+        </div>
+
+        <div id="answer-section" class="bg-white p-6 border-t border-gray-100 text-center hidden">
+            <p class="text-lg font-bold text-gray-700 mb-4">Bé hãy đếm xem có tất cả bao nhiêu túi?</p>
+            
+            <div class="flex justify-center gap-4 items-center mb-4">
+                <button onclick="adjustAnswer(-1)" class="w-10 h-10 rounded-full bg-gray-200 text-xl font-bold hover:bg-gray-300">-</button>
+                <span id="user-answer" class="text-4xl font-extrabold text-pink-600 w-16">0</span>
+                <button onclick="adjustAnswer(1)" class="w-10 h-10 rounded-full bg-gray-200 text-xl font-bold hover:bg-gray-300">+</button>
+            </div>
+
+            <button onclick="checkResult()" class="w-full md:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-10 rounded-xl shadow-lg text-xl">
+                Kiểm Tra Đáp Án
+            </button>
+            
+            <div id="result-message" class="mt-4 h-8"></div>
+        </div>
+
+        <div class="bg-gray-50 p-4 flex justify-center border-t border-gray-200">
+            <button onclick="initGame()" class="text-gray-500 hover:text-pink-600 font-bold flex items-center gap-2 transition-colors">
+                🔄 Bài toán mới
+            </button>
+        </div>
+    </div>
+
+<script>
+    // --- CẤU HÌNH ---
+    const ICONS = ['🍬', '🍎', '🍪', '🥚', 'ball']; // Các loại vật phẩm
+    let currentIcon = '🍬';
+    
+    let totalItems = 22;
+    let capacity = 4;
+    let remainingItems = 0;
+    let bags = []; // Mảng chứa số lượng item trong mỗi túi
+    let userGuess = 0;
+    let isPackingDone = false;
+
+    // --- LOGIC ---
+
+    function initGame() {
+        // Random đề bài
+        // Total: 15 -> 30
+        totalItems = Math.floor(Math.random() * 16) + 15; 
+        // Capacity: 3 -> 6
+        capacity = Math.floor(Math.random() * 4) + 3;
+        
+        // Random icon
+        const icons = ['🍬', '🍎', '🍪', '🥚', '🍊'];
+        currentIcon = icons[Math.floor(Math.random() * icons.length)];
+
+        // Reset state
+        remainingItems = totalItems;
+        bags = [];
+        userGuess = 0;
+        isPackingDone = false;
+        document.getElementById('user-answer').textContent = '0';
+        document.getElementById('result-message').innerHTML = '';
+        document.getElementById('answer-section').classList.add('hidden');
+        document.getElementById('pack-btn').classList.remove('hidden');
+        document.getElementById('pack-btn').disabled = false;
+        document.getElementById('pack-btn').classList.add('animate-pulse');
+
+        // Update Text
+        document.getElementById('total-items-display').textContent = totalItems;
+        document.getElementById('capacity-display').textContent = capacity;
+
+        renderLooseItems();
+        renderBags();
+    }
+
+    function renderLooseItems() {
+        const container = document.getElementById('loose-area');
+        container.innerHTML = '';
+        document.getElementById('remaining-count').textContent = remainingItems;
+
+        for(let i=0; i<remainingItems; i++) {
+            const el = document.createElement('div');
+            el.className = 'item cursor-pointer hover:scale-110';
+            el.textContent = currentIcon;
+            container.appendChild(el);
+        }
+    }
+
+    function renderBags() {
+        const container = document.getElementById('bags-container');
+        container.innerHTML = '';
+
+        bags.forEach((count, index) => {
+            const bag = document.createElement('div');
+            bag.className = 'container-box';
+            
+            // Label
+            const label = document.createElement('div');
+            label.className = 'bag-label';
+            label.textContent = `Túi ${index + 1}`;
+            bag.appendChild(label);
+
+            // Items inside
+            for(let i=0; i<count; i++) {
+                const item = document.createElement('div');
+                item.className = 'text-2xl'; // Nhỏ hơn loose items chút xíu
+                item.textContent = currentIcon;
+                bag.appendChild(item);
+            }
+
+            container.appendChild(bag);
+        });
+    }
+
+    function packItems() {
+        if (remainingItems <= 0) return;
+
+        // Xác định số lượng lấy: Lấy tối đa 'capacity', hoặc lấy hết phần còn lại
+        const amountToTake = Math.min(remainingItems, capacity);
+        
+        // Cập nhật Logic
+        remainingItems -= amountToTake;
+        bags.push(amountToTake);
+
+        // Cập nhật Giao diện
+        renderLooseItems();
+        renderBags();
+
+        // Kiểm tra xong chưa
+        if (remainingItems === 0) {
+            isPackingDone = true;
+            document.getElementById('pack-btn').classList.add('hidden'); // Giấu nút đi
+            document.getElementById('answer-section').classList.remove('hidden'); // Hiện phần trả lời
+            
+            // Auto scroll xuống phần trả lời
+            setTimeout(() => {
+                document.getElementById('answer-section').scrollIntoView({behavior: 'smooth'});
+            }, 300);
+        }
+    }
+
+    function adjustAnswer(delta) {
+        userGuess += delta;
+        if (userGuess < 0) userGuess = 0;
+        document.getElementById('user-answer').textContent = userGuess;
+    }
+
+    function checkResult() {
+        const correctAnswer = Math.ceil(totalItems / capacity);
+        const msgDiv = document.getElementById('result-message');
+
+        if (userGuess === correctAnswer) {
+            msgDiv.innerHTML = `<span class="text-green-600 font-bold text-xl">🎉 Chính xác! Cần ${correctAnswer} túi.</span>`;
+            
+            // Giải thích thêm nếu có dư
+            if (totalItems % capacity !== 0) {
+                const fullBags = Math.floor(totalItems / capacity);
+                const remainder = totalItems % capacity;
+                setTimeout(() => {
+                    msgDiv.innerHTML += `<div class="text-sm text-gray-600 mt-1">
+                        (Có ${fullBags} túi đầy và 1 túi đựng ${remainder} cái còn dư)
+                    </div>`;
+                }, 1000);
+            }
+
+        } else {
+            msgDiv.innerHTML = `<span class="text-red-500 font-bold text-lg">Chưa đúng. Bé hãy đếm kỹ số túi trên màn hình nhé! 🤔</span>`;
+        }
+    }
+
+    // Start
+    initGame();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trò chơi: Tách và Gộp Số</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Nunito:wght@700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fff7ed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .game-title {
+            font-family: 'Nunito', sans-serif;
+            font-weight: 800;
+            font-size: 2.5rem;
+            color: #c2410c;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+        }
+        .option-btn {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 0px #e5e7eb;
+        }
+        .option-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0px #d1d5db;
+        }
+        .option-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0px #d1d5db;
+        }
+        .correct {
+            background-color: #22c55e !important;
+            border-color: #15803d !important;
+            color: white;
+            box-shadow: 0 4px 0px #15803d !important;
+            animation: pulse 0.5s;
+        }
+        .incorrect {
+            background-color: #ef4444 !important;
+            border-color: #b91c1c !important;
+            color: white;
+            box-shadow: 0 4px 0px #b91c1c !important;
+            animation: shake 0.5s;
+        }
+        #gameCanvas {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            border: 4px solid #fed7aa;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        }
+        .custom-select {
+            background-color: white;
+            border: 2px solid #fdba74;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-orange-50">
+
+    <div class="container mx-auto max-w-3xl text-center p-4 sm:p-6 bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border-4 border-white">
+        <h1 class="game-title mb-2">Tách và Gộp Số</h1>
+        <p class="text-gray-500 mb-6 font-medium">Bé hãy nhìn sơ đồ và điền số còn thiếu nhé!</p>
+
+        <div id="settings-screen">
+            <div class="grid sm:grid-cols-2 gap-6 mb-8">
+                <div>
+                    <label class="block text-lg font-bold text-orange-800 mb-2">Độ khó</label>
+                    <select id="difficulty-select" class="custom-select w-full p-3 text-lg rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400">
+                        <option value="easy">Dễ (Đến 5 - Có hình ảnh)</option>
+                        <option value="medium">Vừa (Đến 10 - Có hình ảnh)</option>
+                        <option value="hard">Khó (Đến 20 - Tư duy số)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-lg font-bold text-orange-800 mb-2">Số câu hỏi</label>
+                    <select id="num-questions-select" class="custom-select w-full p-3 text-lg rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400">
+                        <option value="5">5 câu</option>
+                        <option value="10">10 câu</option>
+                        <option value="15">15 câu</option>
+                    </select>
+                </div>
+            </div>
+            <button id="start-btn" class="w-full sm:w-auto bg-orange-500 text-white font-bold py-4 px-12 text-xl rounded-xl shadow-lg hover:bg-orange-600 transition-colors duration-200">
+                Bắt Đầu Chơi!
+            </button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div class="flex justify-between items-center px-4 mb-2">
+                <span id="progress-text" class="text-orange-600 font-bold text-lg">Câu 1/10</span>
+                <div class="flex gap-1">
+                    <span class="w-3 h-3 rounded-full bg-red-400"></span>
+                    <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
+                    <span class="w-3 h-3 rounded-full bg-green-400"></span>
+                </div>
+            </div>
+            
+            <canvas id="gameCanvas" width="600" height="400" class="mx-auto mb-8 w-full max-w-[600px]"></canvas>
+            
+            <p class="text-gray-600 mb-4 font-semibold">Chọn đáp án đúng:</p>
+            <div id="options-container" class="grid grid-cols-4 gap-3 sm:gap-6 mb-6"></div>
+            
+            <div id="message" class="h-12 flex items-center justify-center rounded-lg mb-2">
+                <p id="message-text" class="text-xl font-bold"></p>
+            </div>
+            
+            <button id="next-btn" class="hidden w-full sm:w-auto bg-blue-500 text-white font-bold py-3 px-10 rounded-xl shadow-md hover:bg-blue-600 transition-colors">
+                Câu Tiếp Theo ➜
+            </button>
+        </div>
+    </div>
+
+<script>
+    // --- ELEMENTS ---
+    const settingsScreen = document.getElementById('settings-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const startBtn = document.getElementById('start-btn');
+    const difficultySelect = document.getElementById('difficulty-select');
+    const numQuestionsSelect = document.getElementById('num-questions-select');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const optionsContainer = document.getElementById('options-container');
+    const messageText = document.getElementById('message-text');
+    const nextBtn = document.getElementById('next-btn');
+    const progressText = document.getElementById('progress-text');
+
+    // --- GAME STATE ---
+    let currentQuestionIndex = 0;
+    let gameQuestions = [];
+    let isAnswered = false;
+    let currentDifficulty = 'easy';
+
+    // --- LOGIC TẠO CÂU HỎI (GIỮ NGUYÊN) ---
+    function generateQuestions(count, difficulty) {
+        const questions = [];
+        let maxNumber = 5;
+        if (difficulty === 'medium') maxNumber = 10;
+        if (difficulty === 'hard') maxNumber = 20;
+
+        for (let i = 0; i < count; i++) {
+            const whole = Math.floor(Math.random() * (maxNumber - 1)) + 2;
+            const part1 = Math.floor(Math.random() * (whole + 1)); 
+            const part2 = whole - part1;
+
+            const type = Math.floor(Math.random() * 3); 
+            
+            let correctAnswer;
+            let missingPos; 
+
+            if (type === 0) {
+                correctAnswer = whole;
+                missingPos = 'whole';
+            } else if (type === 1) {
+                correctAnswer = part1;
+                missingPos = 'part1';
+            } else {
+                correctAnswer = part2;
+                missingPos = 'part2';
+            }
+
+            let options = new Set();
+            options.add(correctAnswer);
+            while(options.size < 4) {
+                let wrong = Math.floor(Math.random() * (maxNumber + 2));
+                if (wrong !== correctAnswer) options.add(wrong);
+            }
+
+            questions.push({
+                whole,
+                part1,
+                part2,
+                missingPos,
+                correctAnswer,
+                options: Array.from(options).sort(() => Math.random() - 0.5)
+            });
+        }
+        return questions;
+    }
+
+    // --- VẼ CANVAS (ĐÃ CHỈNH SỬA KÍCH THƯỚC) ---
+    
+    function drawBlocks(ctx, x, y, count, color = '#ef4444') {
+        if (count === 0) return;
+        // THAY ĐỔI: Tăng size từ 20 lên 28 để to hơn
+        const size = 28; 
+        const gap = 6;   
+        
+        const totalWidth = (count * size) + ((count - 1) * gap);
+        let startX = x - totalWidth / 2;
+        
+        // Nếu số lượng nhiều > 5 thì chia 2 hàng
+        if (count > 5) {
+            const row1 = Math.ceil(count / 2);
+            const row2 = count - row1;
+            
+            // Vẽ hàng 1
+            let w1 = (row1 * size) + ((row1 - 1) * gap);
+            let sx1 = x - w1 / 2;
+            for(let i=0; i<row1; i++) {
+                 drawCube3D(ctx, sx1 + i*(size+gap), y - size/2 - 3, size, color);
+            }
+            // Vẽ hàng 2
+            let w2 = (row2 * size) + ((row2 - 1) * gap);
+            let sx2 = x - w2 / 2;
+            for(let i=0; i<row2; i++) {
+                 drawCube3D(ctx, sx2 + i*(size+gap), y + size/2 + 3, size, color);
+            }
+
+        } else {
+            // Vẽ 1 hàng
+            for (let i = 0; i < count; i++) {
+                drawCube3D(ctx, startX + i * (size + gap), y, size, color);
+            }
+        }
+    }
+
+    function drawCube3D(ctx, x, y, size, color) {
+        // Vẽ mặt chính
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, size, size);
+        
+        // Vẽ cạnh bóng đổ
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(x + size, y + 3, 5, size - 3); // Cạnh phải to hơn chút
+        ctx.fillRect(x + 3, y + size, size - 3, 5); // Cạnh dưới to hơn chút
+        
+        // Điểm nhấn sáng
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath();
+        ctx.arc(x + size/2, y + size/2, size/4, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    function drawCircleNode(ctx, x, y, value, isMissing) {
+        const radius = 50; // Tăng nhẹ size vòng tròn lên 50
+        
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff7ed'; 
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = isMissing ? '#3b82f6' : '#000'; 
+        if (isMissing) {
+            ctx.setLineDash([8, 8]); // Nét đứt thưa hơn
+        } else {
+            ctx.setLineDash([]);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = isMissing ? '#3b82f6' : '#000';
+        ctx.font = 'bold 48px "Nunito"'; // Font chữ to hơn
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(isMissing ? '?' : value, x, y + 4); 
+    }
+
+    function drawScene() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const q = gameQuestions[currentQuestionIndex];
+
+        // THAY ĐỔI TỌA ĐỘ CHO CANVAS CAO 400px
+        const xTotal = 150;
+        const yTotal = 200; // Giữa theo chiều dọc
+        
+        const xPart1 = 450;
+        const yPart1 = 100; // Dịch lên trên
+        
+        const xPart2 = 450;
+        const yPart2 = 300; // Dịch xuống dưới để có chỗ cho hình khối
+
+        // Vẽ đường nối
+        ctx.beginPath();
+        ctx.moveTo(xTotal + 50, yTotal); // +50 vì radius tăng
+        ctx.lineTo(xPart1 - 50, yPart1); 
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#475569';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(xTotal + 50, yTotal);
+        ctx.lineTo(xPart2 - 50, yPart2);
+        ctx.stroke();
+
+        // Vẽ Hình khối (Visual Blocks)
+        if (currentDifficulty !== 'hard') {
+            // Điều chỉnh khoảng cách hiển thị khối (offset) cho thoáng
+            if (q.missingPos !== 'whole') drawBlocks(ctx, xTotal, yTotal - 85, q.whole);
+            if (q.missingPos !== 'part1') drawBlocks(ctx, xPart1, yPart1 - 80, q.part1);
+            // Phần 2 vẽ thấp xuống dưới
+            if (q.missingPos !== 'part2') drawBlocks(ctx, xPart2, yPart2 + 65, q.part2); 
+        }
+
+        // Vẽ các vòng tròn
+        drawCircleNode(ctx, xTotal, yTotal, q.whole, q.missingPos === 'whole');
+        drawCircleNode(ctx, xPart1, yPart1, q.part1, q.missingPos === 'part1');
+        drawCircleNode(ctx, xPart2, yPart2, q.part2, q.missingPos === 'part2');
+    }
+
+    // --- GAME CONTROL (GIỮ NGUYÊN) ---
+
+    function setupGame() {
+        const diff = difficultySelect.value;
+        const num = parseInt(numQuestionsSelect.value);
+        currentDifficulty = diff;
+        
+        gameQuestions = generateQuestions(num, diff);
+        currentQuestionIndex = 0;
+        
+        settingsScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        isAnswered = false;
+        if (currentQuestionIndex >= gameQuestions.length) {
+            finishGame();
+            return;
+        }
+        
+        progressText.textContent = `Câu ${currentQuestionIndex + 1} / ${gameQuestions.length}`;
+        messageText.textContent = '';
+        nextBtn.classList.add('hidden');
+        
+        drawScene();
+        createOptions();
+    }
+
+    function createOptions() {
+        optionsContainer.innerHTML = '';
+        const q = gameQuestions[currentQuestionIndex];
+        
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn bg-white border-2 border-orange-200 text-orange-800 text-3xl font-bold py-4 rounded-xl w-full hover:bg-orange-50 hover:border-orange-400';
+            btn.textContent = opt;
+            
+            btn.onclick = () => checkAnswer(opt, btn);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selectedVal, btn) {
+        if (isAnswered) return;
+        isAnswered = true;
+        
+        const q = gameQuestions[currentQuestionIndex];
+        const isCorrect = selectedVal === q.correctAnswer;
+        
+        if (isCorrect) {
+            btn.classList.add('correct');
+            messageText.textContent = "Chính xác! Bé giỏi quá! 🎉";
+            messageText.className = "text-xl font-bold text-green-600";
+            
+            if (q.missingPos === 'whole') q.missingPos = null; 
+            else if (q.missingPos === 'part1') q.missingPos = null;
+            else if (q.missingPos === 'part2') q.missingPos = null;
+            drawScene(); 
+            
+            nextBtn.classList.remove('hidden');
+        } else {
+            btn.classList.add('incorrect');
+            messageText.textContent = "Sai rồi, bé thử lại nhé! 😅";
+            messageText.className = "text-xl font-bold text-red-500";
+            
+            const allBtns = optionsContainer.querySelectorAll('button');
+            allBtns.forEach(b => {
+                if (parseInt(b.textContent) === q.correctAnswer) {
+                    setTimeout(() => b.classList.add('correct'), 300);
+                }
+            });
+            
+            setTimeout(() => {
+               nextBtn.classList.remove('hidden');
+            }, 1000);
+        }
+    }
+
+    function finishGame() {
+        gameScreen.classList.add('hidden');
+        settingsScreen.classList.remove('hidden');
+        alert("Chúc mừng bé đã hoàn thành bài tập! 🌟");
+    }
+
+    startBtn.addEventListener('click', setupGame);
+    nextBtn.addEventListener('click', () => {
+        currentQuestionIndex++;
+        loadQuestion();
+    });
+    
+    window.addEventListener('resize', () => {
+        if(!gameScreen.classList.contains('hidden')) drawScene();
+    });
+
+</script>
+</body>
+</html>

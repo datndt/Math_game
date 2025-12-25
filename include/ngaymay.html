@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trò chơi: Bé Tập Xem Lịch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff; /* Xanh dương nhạt */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 0.5rem;
+        }
+
+        .game-title {
+            font-weight: 800;
+            font-size: 1.8rem;
+            color: #0369a1; /* Xanh dương đậm */
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.1);
+        }
+
+        /* CSS cho tờ lịch */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            padding: 8px;
+            background: white;
+            border-radius: 0 0 12px 12px;
+            border: 2px solid #bae6fd;
+            border-top: none;
+        }
+
+        .cal-header {
+            background-color: #0ea5e9;
+            color: white;
+            border-radius: 12px 12px 0 0;
+            padding: 8px;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 800;
+            font-size: 0.9rem;
+        }
+
+        .day-cell {
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            font-weight: 700;
+            color: #475569;
+            font-size: 1.1rem;
+            cursor: default;
+            transition: all 0.2s;
+        }
+
+        .day-empty {
+            background: transparent;
+        }
+
+        /* Ngày hiện tại (Hôm nay) */
+        .day-start {
+            background-color: #fb923c !important; /* Cam */
+            color: white !important;
+            box-shadow: 0 2px 0 #c2410c;
+            transform: scale(1.1);
+            z-index: 10;
+            border: 2px solid white;
+        }
+
+        /* Ngày kết quả (Sau khi tính xong) */
+        .day-target {
+            background-color: #22c55e !important; /* Xanh lá */
+            color: white !important;
+            animation: pulse-green 1s infinite;
+        }
+        
+        /* Hiệu ứng đếm (để bé nhìn đường đi - tuỳ chọn) */
+        .day-path {
+            background-color: #fed7aa;
+            color: #9a3412;
+        }
+
+        .option-btn {
+            background-color: white;
+            border: 2px solid #e0f2fe;
+            color: #0369a1;
+            font-weight: 700;
+            padding: 10px 4px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 3px 0 #bae6fd;
+            font-size: 0.95rem;
+        }
+        .option-btn:hover {
+            transform: translateY(-2px);
+            background-color: #f0f9ff;
+        }
+        .option-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 0 #bae6fd;
+        }
+
+        .btn-correct {
+            background-color: #22c55e !important;
+            border-color: #15803d !important;
+            color: white !important;
+            box-shadow: 0 3px 0 #15803d !important;
+        }
+        .btn-incorrect {
+            background-color: #ef4444 !important;
+            border-color: #b91c1c !important;
+            color: white !important;
+            box-shadow: 0 3px 0 #b91c1c !important;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+    </style>
+</head>
+<body class="bg-sky-50">
+
+    <div class="container mx-auto max-w-xl text-center p-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border-4 border-white">
+        <h1 class="game-title mb-1">Xem Lịch: Thứ Mấy?</h1>
+        <p class="text-gray-500 mb-4 text-sm font-medium">Bé hãy nhìn lịch và trả lời câu hỏi nhé!</p>
+
+        <div id="settings-screen">
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-bold text-sky-800 mb-1">Độ khó</label>
+                    <select id="difficulty-select" class="w-full p-2 border-2 border-sky-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 text-sky-900 font-bold">
+                        <option value="easy">Dễ (Cộng 1-6 ngày)</option>
+                        <option value="medium">Vừa (Cộng 7-14 ngày)</option>
+                        <option value="hard">Khó (Cộng 15-25 ngày)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-sky-800 mb-1">Số câu</label>
+                    <select id="num-questions-select" class="w-full p-2 border-2 border-sky-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 text-sky-900 font-bold">
+                        <option value="5">5 câu</option>
+                        <option value="10">10 câu</option>
+                    </select>
+                </div>
+            </div>
+            <button id="start-btn" class="w-full bg-sky-500 text-white font-bold py-3 px-8 text-lg rounded-xl shadow-md hover:bg-sky-600 transition-colors duration-200">
+                Bắt Đầu Chơi!
+            </button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div class="flex justify-between items-center px-2 mb-3">
+                <span id="progress-text" class="text-sky-600 font-bold text-base">Câu 1/10</span>
+                <div class="flex gap-1">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
+                </div>
+            </div>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-xl p-3 mb-4">
+                <p id="question-text" class="text-lg font-bold text-orange-800 leading-snug">
+                    Hôm nay là <span class="text-orange-600">Thứ 2</span> (ngày 10).<br>
+                    <span class="text-2xl text-orange-600">4</span> ngày nữa là thứ mấy?
+                </p>
+            </div>
+
+            <div class="mb-6 max-w-[360px] mx-auto shadow-lg">
+                <div class="cal-header">
+                    <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div class="text-yellow-200">T7</div><div class="text-red-200">CN</div>
+                </div>
+                <div id="calendar-grid" class="calendar-grid">
+                    </div>
+            </div>
+            
+            <p class="text-gray-500 text-xs font-bold mb-2 text-left px-2">Chọn đáp án:</p>
+            <div id="options-container" class="grid grid-cols-4 gap-2 mb-4">
+                </div>
+            
+            <div id="message" class="h-8 flex items-center justify-center rounded-lg mb-1">
+                <p id="message-text" class="text-lg font-bold"></p>
+            </div>
+            
+            <button id="next-btn" class="hidden w-full bg-sky-500 text-white font-bold py-2 px-8 rounded-lg shadow-md hover:bg-sky-600 transition-colors">
+                Câu Tiếp Theo ➜
+            </button>
+        </div>
+    </div>
+
+<script>
+    // --- DATA ---
+    const daysOfWeek = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']; // Index 0 = CN
+    
+    // --- ELEMENTS ---
+    const settingsScreen = document.getElementById('settings-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const startBtn = document.getElementById('start-btn');
+    const difficultySelect = document.getElementById('difficulty-select');
+    const numQuestionsSelect = document.getElementById('num-questions-select');
+    
+    const questionText = document.getElementById('question-text');
+    const calendarGrid = document.getElementById('calendar-grid');
+    const optionsContainer = document.getElementById('options-container');
+    const messageText = document.getElementById('message-text');
+    const nextBtn = document.getElementById('next-btn');
+    const progressText = document.getElementById('progress-text');
+
+    // --- GAME STATE ---
+    let currentQuestionIndex = 0;
+    let gameQuestions = [];
+    let isAnswered = false;
+    let currentDifficulty = 'easy';
+    let currentQ = null;
+
+    // --- LOGIC ---
+
+    // Hàm lấy số ngày trong tháng (giả lập đơn giản để bé dễ học)
+    // Ta sẽ dùng tháng cố định 31 ngày hoặc 30 ngày ngẫu nhiên
+    function generateQuestions(count, difficulty) {
+        const questions = [];
+        let minAdd = 1, maxAdd = 6;
+        
+        if(difficulty === 'medium') { minAdd = 7; maxAdd = 14; }
+        if(difficulty === 'hard') { minAdd = 15; maxAdd = 25; }
+
+        for(let i=0; i<count; i++) {
+            // 1. Chọn ngày bắt đầu ngẫu nhiên của tháng (1 -> 28 để đảm bảo phép cộng k quá phức tạp ở mức dễ)
+            // Để trực quan, ta giả định tháng này bắt đầu vào một thứ ngẫu nhiên
+            const monthStartDayOfWeek = Math.floor(Math.random() * 7); // 0(CN) -> 6(T7)
+            
+            // 2. Chọn ngày hiện tại (startDate)
+            // Giới hạn startDate sao cho startDate + daysToAdd không vượt quá 30 quá nhiều
+            // để hiển thị trên 1 tờ lịch cho đẹp (hoặc chớm sang tháng sau cũng được, nhưng để dễ thì giữ trong 1 trang)
+            let maxStart = 25;
+            if(difficulty === 'hard') maxStart = 5; // Nếu cộng nhiều ngày thì start phải nhỏ
+            else if(difficulty === 'medium') maxStart = 15;
+            
+            const startDate = Math.floor(Math.random() * maxStart) + 1;
+            
+            // 3. Số ngày cộng thêm
+            const daysToAdd = Math.floor(Math.random() * (maxAdd - minAdd + 1)) + minAdd;
+            
+            // 4. Tính toán
+            // Tìm thứ của ngày 1: monthStartDayOfWeek
+            // Thứ của ngày startDate:
+            // Index thứ = (monthStartDayOfWeek + (startDate - 1)) % 7
+            const startDayIndex = (monthStartDayOfWeek + (startDate - 1)) % 7;
+            
+            const targetDate = startDate + daysToAdd;
+            const targetDayIndex = (startDayIndex + daysToAdd) % 7;
+
+            questions.push({
+                monthStartDayOfWeek, // Ngày 1 của tháng rơi vào thứ mấy
+                startDate,           // Ngày hôm nay (số)
+                startDayIndex,       // Ngày hôm nay (thứ index)
+                daysToAdd,           // Cộng thêm bao nhiêu
+                targetDate,          // Ngày kết quả (số)
+                targetDayIndex       // Ngày kết quả (thứ index)
+            });
+        }
+        return questions;
+    }
+
+    // --- VIEW FUNCTIONS ---
+
+    function renderCalendar(q) {
+        calendarGrid.innerHTML = '';
+        
+        // Tạo các ô trống trước ngày 1
+        // Lưu ý: Lịch hiển thị T2, T3... T7, CN. 
+        // Logic mảng daysOfWeek: 0=CN, 1=T2... 6=T7.
+        // Trên giao diện Grid: Cột 1=T2, Cột 2=T3... Cột 6=T7, Cột 7=CN.
+        
+        // Map index JS sang cột Grid (1-7):
+        // JS: 1(T2)->1, 2(T3)->2, ..., 6(T7)->6, 0(CN)->7
+        let startColumn = q.monthStartDayOfWeek === 0 ? 7 : q.monthStartDayOfWeek;
+        
+        // Loop tạo ô trống
+        for(let i=1; i<startColumn; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'day-cell day-empty';
+            calendarGrid.appendChild(empty);
+        }
+
+        // Loop tạo ngày (Vẽ đến ngày 31 cho đầy đặn)
+        for(let d=1; d<=31; d++) {
+            const cell = document.createElement('div');
+            cell.className = 'day-cell bg-slate-50 border border-slate-100';
+            cell.textContent = d;
+            
+            // Highlight ngày bắt đầu (Hôm nay)
+            if(d === q.startDate) {
+                cell.classList.add('day-start');
+                cell.innerHTML = `<span>${d}</span>`; // Bọc span để style
+            }
+            
+            // Đánh dấu ID để tìm ngày đích sau khi trả lời đúng
+            cell.id = `date-${d}`;
+
+            calendarGrid.appendChild(cell);
+        }
+    }
+
+    function renderOptions(correctIndex) {
+        optionsContainer.innerHTML = '';
+        // Hiển thị đủ 7 thứ nhưng xáo trộn hoặc cố định? 
+        // Để dễ tìm, nên hiển thị cố định từ T2 -> CN
+        const order = [1, 2, 3, 4, 5, 6, 0]; // T2 -> CN
+        
+        order.forEach(idx => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = daysOfWeek[idx];
+            btn.onclick = () => checkAnswer(idx, btn);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    // --- CONTROLLER ---
+
+    function setupGame() {
+        const diff = difficultySelect.value;
+        const num = parseInt(numQuestionsSelect.value);
+        currentDifficulty = diff;
+        
+        gameQuestions = generateQuestions(num, diff);
+        currentQuestionIndex = 0;
+        
+        settingsScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        isAnswered = false;
+        if (currentQuestionIndex >= gameQuestions.length) {
+            finishGame();
+            return;
+        }
+        
+        currentQ = gameQuestions[currentQuestionIndex];
+        progressText.textContent = `Câu ${currentQuestionIndex + 1} / ${gameQuestions.length}`;
+        messageText.textContent = '';
+        nextBtn.classList.add('hidden');
+        
+        // Cập nhật text câu hỏi
+        const dayName = daysOfWeek[currentQ.startDayIndex];
+        questionText.innerHTML = `
+            Hôm nay là <span class="text-orange-600 font-extrabold">${dayName}</span> (ngày ${currentQ.startDate}).<br>
+            <span class="text-2xl text-orange-600 font-extrabold">${currentQ.daysToAdd}</span> ngày nữa là thứ mấy?
+        `;
+
+        renderCalendar(currentQ);
+        renderOptions(currentQ.targetDayIndex);
+    }
+
+    function checkAnswer(selectedIndex, btn) {
+        if(isAnswered) return;
+        isAnswered = true;
+        
+        const isCorrect = selectedIndex === currentQ.targetDayIndex;
+        
+        if(isCorrect) {
+            btn.classList.add('btn-correct');
+            messageText.textContent = "Giỏi quá! Đúng rồi! 🎉";
+            messageText.className = "text-green-600 text-lg font-bold";
+            
+            // Visual effect: Highlight ngày đích trên lịch
+            const targetCell = document.getElementById(`date-${currentQ.targetDate}`);
+            if(targetCell) {
+                targetCell.classList.add('day-target');
+                // Cuộn nhẹ nếu cần (nhưng ở layout này thì không cần)
+            }
+            
+            nextBtn.classList.remove('hidden');
+        } else {
+            btn.classList.add('btn-incorrect');
+            const correctName = daysOfWeek[currentQ.targetDayIndex];
+            messageText.textContent = `Sai rồi, đó là ${correctName} mới đúng! 😅`;
+            messageText.className = "text-red-500 text-lg font-bold";
+            
+            // Highlight đáp án đúng trên nút
+            const allBtns = optionsContainer.querySelectorAll('button');
+            allBtns.forEach(b => {
+                if(b.textContent === correctName) {
+                    setTimeout(() => b.classList.add('btn-correct'), 300);
+                }
+            });
+            
+            // Highlight trên lịch luôn để bé học
+            const targetCell = document.getElementById(`date-${currentQ.targetDate}`);
+            if(targetCell) targetCell.classList.add('day-target');
+
+            setTimeout(() => nextBtn.classList.remove('hidden'), 1500);
+        }
+    }
+
+    function finishGame() {
+        gameScreen.classList.add('hidden');
+        settingsScreen.classList.remove('hidden');
+        alert("Chúc mừng bé đã hoàn thành bài tập xem lịch! 🌟");
+    }
+
+    startBtn.addEventListener('click', setupGame);
+    nextBtn.addEventListener('click', () => {
+        currentQuestionIndex++;
+        loadQuestion();
+    });
+
+</script>
+</body>
+</html>

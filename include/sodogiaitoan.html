@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sơ Đồ Toán Học Vui (Tuổi & Đồ Vật)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Hiệu ứng chọn ô */
+        .slot-box {
+            background: white;
+            border: 3px dashed #cbd5e1;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        /* Trạng thái đang được chọn để điền */
+        .slot-active {
+            border-color: #f59e0b !important; /* Màu cam */
+            background-color: #fffbeb !important;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        /* Trạng thái đã điền */
+        .slot-filled {
+            border-style: solid;
+            background-color: #e0f2fe;
+            border-color: #0ea5e9;
+            color: #0369a1;
+            font-weight: 900;
+        }
+
+        /* Bàn phím số */
+        .numpad-btn {
+            background: white;
+            border: 2px solid #e2e8f0;
+            box-shadow: 0 4px 0 #cbd5e1;
+            border-radius: 12px;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #475569;
+            transition: all 0.1s;
+        }
+        .numpad-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* Thanh sơ đồ (Bar Model) */
+        .bar-model {
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: bold;
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
+            transition: width 0.5s ease;
+        }
+
+        /* Đường dóng đứt đoạn */
+        .dashed-guide {
+            border-left: 2px dashed #94a3b8;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            z-index: 0;
+        }
+
+        .correct { background-color: #dcfce7 !important; border-color: #22c55e !important; color: #15803d !important; }
+        .wrong { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #b91c1c !important; animation: shake 0.4s; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 md:p-4">
+
+    <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl border-4 border-slate-100 overflow-hidden flex flex-col">
+        
+        <div class="bg-sky-100 p-4 border-b-2 border-sky-200 flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-extrabold text-sky-700 flex items-center gap-2">
+                🎓 Bé Giải Toán
+            </h1>
+            <div class="flex gap-2">
+                <button onclick="game.init('items')" class="px-3 py-1 bg-white rounded-lg text-sm font-bold text-sky-600 shadow-sm border border-sky-200 hover:bg-sky-50">🌸 Đồ vật</button>
+                <button onclick="game.init('age')" class="px-3 py-1 bg-white rounded-lg text-sm font-bold text-orange-500 shadow-sm border border-orange-200 hover:bg-orange-50">🎂 Tuổi</button>
+            </div>
+        </div>
+
+        <div class="p-6 text-center bg-slate-50 border-b border-slate-100">
+            <p id="question-text" class="text-lg md:text-2xl font-bold text-slate-700 leading-normal">
+                </p>
+        </div>
+
+        <div class="flex-1 p-4 md:p-8 relative bg-white">
+            
+            <div class="flex items-center mb-6">
+                <div id="label-1" class="w-24 text-right font-bold text-slate-500 mr-3 text-sm md:text-base">Mẹ</div>
+                <div class="flex-1 flex items-center">
+                    <div id="bar-1" class="bar-model bg-blue-400" style="width: 100px;">30</div>
+                </div>
+            </div>
+
+            <div class="flex items-center mb-6">
+                <div id="label-2" class="w-24 text-right font-bold text-slate-500 mr-3 text-sm md:text-base">Bố</div>
+                <div class="flex-1 flex items-center flex-wrap gap-2">
+                    <div id="bar-2-base" class="bar-model bg-blue-400 opacity-60" style="width: 100px;">30</div>
+                    <span id="op-2" class="font-black text-slate-400 text-xl">+</span>
+                    <div onclick="game.selectSlot(this)" id="slot-diff-1" data-target="diff-1" class="slot-box w-12 h-10 rounded-lg flex items-center justify-center font-bold text-slate-400">?</div>
+                    <span class="font-black text-slate-400 text-xl">=</span>
+                    <div onclick="game.selectSlot(this)" id="slot-res-1" data-target="res-1" class="slot-box w-16 h-11 rounded-lg flex items-center justify-center font-black text-blue-600 border-blue-200 bg-blue-50 text-xl">?</div>
+                </div>
+            </div>
+
+            <div class="flex items-center">
+                <div id="label-3" class="w-24 text-right font-bold text-slate-500 mr-3 text-sm md:text-base">Con</div>
+                <div class="flex-1 flex items-center flex-wrap gap-2">
+                    <div id="bar-3-base" class="bar-model bg-green-400 opacity-60" style="width: 50px;">?</div>
+                    <span id="op-3" class="font-black text-slate-400 text-xl">-</span>
+                    <div onclick="game.selectSlot(this)" id="slot-diff-2" data-target="diff-2" class="slot-box w-12 h-10 rounded-lg flex items-center justify-center font-bold text-slate-400">?</div>
+                    <span class="font-black text-slate-400 text-xl">=</span>
+                    <div onclick="game.selectSlot(this)" id="slot-final" data-target="final" class="slot-box w-20 h-12 rounded-xl flex items-center justify-center font-black text-orange-600 border-orange-300 bg-orange-50 text-2xl shadow-sm">?</div>
+                </div>
+            </div>
+
+            <div id="guide-msg" class="absolute bottom-2 right-4 text-xs font-bold text-slate-400 italic">
+                Bấm vào ô trống trước, sau đó chọn số
+            </div>
+        </div>
+
+        <div class="bg-slate-100 p-4 border-t border-slate-200">
+            <div id="numpad" class="flex flex-wrap justify-center gap-2 mb-4">
+                </div>
+            
+            <div class="flex justify-between items-center px-4 md:px-10">
+                <div id="msg" class="font-bold text-lg h-6"></div>
+                <div class="flex gap-3">
+                    <button onclick="game.check()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-xl shadow-[0_4px_0_#15803d] active:shadow-none active:translate-y-[4px] transition-all">
+                        Kiểm tra
+                    </button>
+                    <button onclick="game.nextLevel()" class="bg-white border-2 border-slate-300 text-slate-600 hover:bg-slate-50 font-bold py-2 px-4 rounded-xl">
+                        Bài tiếp ➜
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    class MathGame {
+        constructor() {
+            this.mode = 'items'; // 'items' hoặc 'age'
+            this.activeSlot = null; // Ô đang được chọn
+            this.answers = {}; // Lưu đáp án đúng
+            this.userValues = {}; // Lưu giá trị người dùng điền
+            
+            this.elements = {
+                question: document.getElementById('question-text'),
+                numpad: document.getElementById('numpad'),
+                msg: document.getElementById('msg'),
+                slots: document.querySelectorAll('.slot-box'),
+                guide: document.getElementById('guide-msg')
+            };
+
+            this.init('items');
+        }
+
+        init(mode) {
+            this.mode = mode;
+            this.generateProblem();
+        }
+
+        nextLevel() {
+            this.generateProblem();
+        }
+
+        // Logic sinh đề bài
+        generateProblem() {
+            this.resetUI();
+            
+            // 1. Cấu hình dữ liệu theo Mode
+            let data;
+            if (this.mode === 'age') {
+                data = this.generateAgeData();
+            } else {
+                data = this.generateItemData();
+            }
+            
+            this.currentData = data;
+            this.answers = data.solution;
+
+            // 2. Hiển thị đề bài
+            this.elements.question.innerHTML = data.questionHtml;
+
+            // 3. Cập nhật nhãn (Label) sơ đồ
+            document.getElementById('label-1').innerText = data.names[0];
+            document.getElementById('label-2').innerText = data.names[1];
+            document.getElementById('label-3').innerText = data.names[2];
+
+            // 4. Cập nhật thanh Bar đầu tiên (Cố định)
+            const bar1 = document.getElementById('bar-1');
+            bar1.style.width = this.calcBarWidth(data.baseValue, this.mode);
+            bar1.innerText = data.baseValue;
+            
+            // Cập nhật thanh Bar bóng mờ của dòng 2
+            const bar2base = document.getElementById('bar-2-base');
+            bar2base.style.width = this.calcBarWidth(data.baseValue, this.mode);
+            bar2base.innerText = data.baseValue;
+
+            // 5. Cập nhật dấu (+/-)
+            document.getElementById('op-2').innerText = data.ops[0];
+            document.getElementById('op-3').innerText = data.ops[1];
+
+            // 6. Sinh bàn phím số (Options)
+            this.generateNumpad(data.options);
+        }
+
+        generateAgeData() {
+            // Logic tuổi: Số lớn hơn (20-60), chênh lệch ít (1-10)
+            const names = ["Bố", "Mẹ", "Con"];
+            // Random ai là người gốc (Mẹ thường ở giữa để dễ so sánh)
+            // Kịch bản: Mẹ 35 tuổi. Bố hơn Mẹ 4 tuổi. Con kém Mẹ 28 tuổi.
+            
+            const baseValue = Math.floor(Math.random() * 20) + 25; // Tuổi mẹ: 25-45
+            
+            // Bước 1: Bố so với Mẹ
+            const diff1 = Math.floor(Math.random() * 5) + 1;
+            const isMore1 = true; // Bố thường hơn tuổi mẹ (để đơn giản)
+            const val2 = baseValue + diff1;
+            
+            // Bước 2: Con so với Mẹ (Hoặc Bố)
+            // Để khớp với sơ đồ 3 dòng A -> B -> C, ta sẽ lái bài toán:
+            // "Mẹ 35 tuổi. Bố hơn mẹ 4 tuổi. Mẹ hơn Con 30 tuổi" -> Tìm Con.
+            // Nhưng sơ đồ đang là A -> B -> C. Nên ta sẽ làm:
+            // A: Mẹ. B: Bố (Mẹ + 4). C: Ông (Bố + 25) HOẶC Con (Bố - 30).
+            
+            // Đổi lại logic cho phù hợp sơ đồ dòng chảy:
+            // A (Con) -> B (Mẹ) -> C (Bố)
+            const mapNames = ["Con", "Mẹ", "Bố"];
+            const ageCon = Math.floor(Math.random() * 6) + 4; // 4-10 tuổi
+            const diffMeCon = Math.floor(Math.random() * 5) + 20; // Mẹ hơn con 20-25
+            const ageMe = ageCon + diffMeCon;
+            const diffBoMe = Math.floor(Math.random() * 5) + 1; // Bố hơn mẹ 1-5
+            const ageBo = ageMe + diffBoMe;
+
+            return {
+                names: mapNames,
+                baseValue: ageCon,
+                questionHtml: `${mapNames[0]} <span class="text-blue-600 font-black">${ageCon}</span> tuổi.<br> 
+                               ${mapNames[1]} hơn ${mapNames[0]} <span class="text-orange-600 font-bold">${diffMeCon}</span> tuổi.<br>
+                               ${mapNames[2]} hơn ${mapNames[1]} <span class="text-orange-600 font-bold">${diffBoMe}</span> tuổi.<br>
+                               Hỏi ${mapNames[2]} bao nhiêu tuổi?`,
+                ops: ["+", "+"], // Luôn là cộng cho dễ hiểu với kịch bản này
+                solution: {
+                    "diff-1": diffMeCon, "res-1": ageMe,
+                    "diff-2": diffBoMe, "final": ageBo
+                },
+                options: [ageCon, diffMeCon, ageMe, diffBoMe, ageBo] // Các số cần dùng
+            };
+        }
+
+        generateItemData() {
+            // Logic đồ vật: Số nhỏ (5-20)
+            const subjects = [
+                ["Bình Đỏ", "Bình Xanh", "Bình Vàng"],
+                ["Tổ 1", "Tổ 2", "Tổ 3"],
+                ["Hộp kẹo", "Hộp bánh", "Hộp sữa"]
+            ];
+            const names = subjects[Math.floor(Math.random() * subjects.length)];
+            const baseValue = Math.floor(Math.random() * 10) + 5;
+            
+            const diff1 = Math.floor(Math.random() * 5) + 2;
+            const isMore1 = Math.random() > 0.5;
+            const val2 = isMore1 ? baseValue + diff1 : baseValue - diff1;
+            
+            const diff2 = Math.floor(Math.random() * 4) + 1;
+            const isMore2 = Math.random() > 0.5;
+            const val3 = isMore2 ? val2 + diff2 : val2 - diff2;
+
+            const txt1 = isMore1 ? "nhiều hơn" : "ít hơn";
+            const txt2 = isMore2 ? "nhiều hơn" : "ít hơn";
+            const color1 = isMore1 ? "text-green-600" : "text-red-500";
+            const color2 = isMore2 ? "text-green-600" : "text-red-500";
+
+            // Sơ đồ A -> B -> C
+            // Dòng 2: B so với A. Dòng 3: C so với B.
+            
+            return {
+                names: names,
+                baseValue: baseValue,
+                questionHtml: `${names[0]} có <span class="text-blue-600 font-black">${baseValue}</span> cái.<br> 
+                               ${names[1]} ${txt1} ${names[0]} <span class="${color1} font-bold">${diff1}</span> cái.<br>
+                               ${names[2]} ${txt2} ${names[1]} <span class="${color2} font-bold">${diff2}</span> cái.<br>
+                               Hỏi ${names[2]} có bao nhiêu cái?`,
+                ops: [isMore1 ? "+" : "-", isMore2 ? "+" : "-"],
+                solution: {
+                    "diff-1": diff1, "res-1": val2,
+                    "diff-2": diff2, "final": val3
+                },
+                options: [baseValue, diff1, val2, diff2, val3]
+            };
+        }
+
+        generateNumpad(correctArr) {
+            this.elements.numpad.innerHTML = '';
+            // Tạo thêm số nhiễu
+            let pool = [...correctArr, correctArr[0]+1, correctArr[1]-1, Math.floor(Math.random()*10)];
+            pool = [...new Set(pool)].sort((a,b) => a - b); // Sắp xếp tăng dần cho dễ nhìn
+
+            pool.forEach(num => {
+                const btn = document.createElement('button');
+                btn.className = 'numpad-btn w-12 h-12 md:w-14 md:h-14 hover:bg-slate-50';
+                btn.textContent = num;
+                btn.onclick = () => this.fillNumber(num);
+                this.elements.numpad.appendChild(btn);
+            });
+        }
+
+        // UX: Chọn ô trống trước
+        selectSlot(el) {
+            // Xóa active cũ
+            if (this.activeSlot) {
+                this.activeSlot.classList.remove('slot-active');
+            }
+            // Active mới
+            this.activeSlot = el;
+            el.classList.add('slot-active');
+            
+            // Hướng dẫn
+            this.elements.guide.innerText = "Đang chọn ô: " + (el.id.includes('diff') ? "Số chênh lệch" : "Kết quả");
+            this.elements.guide.className = "absolute bottom-2 right-4 text-xs font-bold text-orange-500 animate-pulse";
+        }
+
+        // UX: Chọn số sau
+        fillNumber(num) {
+            if (!this.activeSlot) {
+                // Rung nhẹ các ô để nhắc người dùng chọn ô trước
+                this.elements.slots.forEach(s => s.classList.add('wrong'));
+                setTimeout(() => this.elements.slots.forEach(s => s.classList.remove('wrong')), 400);
+                this.elements.guide.innerText = "⚠️ Hãy bấm vào ô trống hình vuông phía trên trước!";
+                this.elements.guide.className = "absolute bottom-2 right-4 text-xs font-bold text-red-500";
+                return;
+            }
+
+            // Điền số
+            this.activeSlot.textContent = num;
+            this.activeSlot.classList.add('slot-filled');
+            this.activeSlot.classList.remove('slot-active', 'wrong', 'correct');
+            
+            // Lưu giá trị
+            const key = this.activeSlot.getAttribute('data-target');
+            this.userValues[key] = num;
+
+            // Logic Visual đặc biệt:
+            // Nếu điền xong "res-1" (Kết quả dòng 2), thì cập nhật độ dài thanh bar mờ ở dòng 3
+            if (key === 'res-1') {
+                const bar3 = document.getElementById('bar-3-base');
+                bar3.textContent = num;
+                bar3.style.width = this.calcBarWidth(num, this.mode);
+            }
+
+            // Reset active
+            this.activeSlot = null;
+            this.elements.guide.innerText = "Đã điền xong. Tiếp tục ô khác!";
+            this.elements.guide.className = "absolute bottom-2 right-4 text-xs font-bold text-green-600";
+        }
+
+        calcBarWidth(val, mode) {
+            // Điều chỉnh độ dài thanh bar cho đẹp
+            let unit = mode === 'age' ? 4 : 8; // Tuổi số to nên scale nhỏ lại
+            let w = val * unit;
+            if (w < 40) w = 40;
+            if (w > 250) w = 250;
+            return w + 'px';
+        }
+
+        resetUI() {
+            this.userValues = {};
+            this.activeSlot = null;
+            this.elements.msg.textContent = "";
+            this.elements.msg.className = "font-bold text-lg h-6";
+            
+            // Reset các ô slot
+            this.elements.slots.forEach(slot => {
+                slot.textContent = "?";
+                slot.classList.remove('slot-filled', 'slot-active', 'correct', 'wrong');
+            });
+
+            document.getElementById('bar-3-base').textContent = "?";
+        }
+
+        check() {
+            let isAllCorrect = true;
+            let countFilled = 0;
+
+            for (const [key, correctVal] of Object.entries(this.answers)) {
+                const slot = document.querySelector(`[data-target="${key}"]`);
+                const userVal = this.userValues[key];
+
+                if (userVal === undefined) {
+                    isAllCorrect = false;
+                    continue;
+                }
+                countFilled++;
+
+                if (parseInt(userVal) === correctVal) {
+                    slot.classList.add('correct');
+                    slot.classList.remove('wrong');
+                } else {
+                    slot.classList.add('wrong');
+                    slot.classList.remove('correct');
+                    isAllCorrect = false;
+                }
+            }
+
+            if (countFilled < 4) {
+                this.elements.msg.textContent = "Bé chưa điền hết các ô kìa!";
+                this.elements.msg.className = "font-bold text-lg h-6 text-orange-500";
+                return;
+            }
+
+            if (isAllCorrect) {
+                this.elements.msg.textContent = "🎉 Chính xác! Bé giỏi quá!";
+                this.elements.msg.className = "font-bold text-lg h-6 text-green-600";
+            } else {
+                this.elements.msg.textContent = "Có ô sai rồi, bé tính lại nhé!";
+                this.elements.msg.className = "font-bold text-lg h-6 text-red-500";
+            }
+        }
+    }
+
+    const game = new MathGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tiệc Pizza Phân Số</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #fff7ed; /* Cam nhạt */
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 0 #fb923c;
+            border: 4px solid #fdba74;
+        }
+
+        /* SVG Pizza Styles */
+        .pizza-slice {
+            fill: #facc15; /* Màu phô mai */
+            stroke: #b45309; /* Màu vỏ bánh */
+            stroke-width: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .pizza-slice:hover {
+            filter: brightness(1.1);
+        }
+
+        /* Hiệu ứng khi miếng bánh bị ăn */
+        .slice-eaten {
+            opacity: 0.1; /* Mờ đi */
+            transform: scale(0.9);
+            fill: #cbd5e1;
+            stroke: #94a3b8;
+        }
+
+        /* Pepperoni (Xúc xích) trang trí */
+        .pepperoni {
+            fill: #ef4444;
+            opacity: 0.8;
+            pointer-events: none; /* Không chặn click */
+        }
+
+        /* CSS hiển thị phân số toán học */
+        .fraction {
+            display: inline-block;
+            text-align: center;
+            vertical-align: middle;
+            font-weight: 800;
+            margin: 0 5px;
+        }
+        .frac-top {
+            display: block;
+            border-bottom: 3px solid currentColor;
+            padding-bottom: 2px;
+            line-height: 1;
+        }
+        .frac-bottom {
+            display: block;
+            padding-top: 2px;
+            line-height: 1;
+        }
+
+        .stat-box {
+            background: #fff;
+            border: 2px solid #fed7aa;
+            border-radius: 12px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 0 #fed7aa;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-3">
+
+    <div class="game-card w-full max-w-xl p-4 md:p-8 text-center">
+        
+        <h1 class="text-3xl font-extrabold text-orange-600 mb-2">Tiệc Pizza Phân Số 🍕</h1>
+        <p id="instruction" class="text-slate-500 font-bold mb-6 text-lg">
+            Bé hãy giúp bạn nhỏ ăn <span class="text-orange-600 text-2xl">...</span> miếng bánh nhé!
+        </p>
+
+        <div class="relative w-64 h-64 mx-auto mb-8 drop-shadow-xl">
+            <svg id="pizza-svg" viewBox="-110 -110 220 220" class="w-full h-full overflow-visible">
+            </svg>
+        </div>
+
+        <div class="flex justify-center gap-4 mb-8">
+            <div class="stat-box text-orange-600">
+                <span class="text-sm font-bold uppercase">Đã ăn:</span>
+                <div class="fraction text-2xl">
+                    <span id="eaten-num" class="frac-top">0</span>
+                    <span id="total-denom-1" class="frac-bottom">?</span>
+                </div>
+            </div>
+
+            <div class="stat-box text-green-600">
+                <span class="text-sm font-bold uppercase">Còn lại:</span>
+                <div class="fraction text-2xl">
+                    <span id="remain-num" class="frac-top">?</span>
+                    <span id="total-denom-2" class="frac-bottom">?</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="h-12 flex justify-center items-center">
+            <p id="msg" class="text-lg font-bold text-slate-700"></p>
+            <button id="nextBtn" onclick="game.newLevel()" class="hidden bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-8 rounded-full shadow-lg transform transition hover:-translate-y-1">
+                Bánh Tiếp Theo ➜
+            </button>
+        </div>
+    </div>
+
+<script>
+    class PizzaGame {
+        constructor() {
+            this.svg = document.getElementById('pizza-svg');
+            this.eatenNumEl = document.getElementById('eaten-num');
+            this.remainNumEl = document.getElementById('remain-num');
+            this.denomEl1 = document.getElementById('total-denom-1');
+            this.denomEl2 = document.getElementById('total-denom-2');
+            this.instructionEl = document.getElementById('instruction');
+            this.msg = document.getElementById('msg');
+            this.nextBtn = document.getElementById('nextBtn');
+
+            this.totalSlices = 4;
+            this.eatenCount = 0;
+            this.targetToEat = 1;
+            this.isPlaying = true;
+
+            this.newLevel();
+        }
+
+        newLevel() {
+            // Reset trạng thái
+            this.isPlaying = true;
+            this.eatenCount = 0;
+            this.msg.textContent = "";
+            this.nextBtn.classList.add('hidden');
+            this.svg.innerHTML = '';
+
+            // 1. Random số miếng (mẫu số) từ 2 đến 8
+            this.totalSlices = Math.floor(Math.random() * 7) + 2; 
+            
+            // 2. Random số miếng cần ăn (tử số) từ 1 đến (total - 1)
+            // Để luôn còn thừa ít nhất 1 miếng cho có ý nghĩa
+            this.targetToEat = Math.floor(Math.random() * (this.totalSlices - 1)) + 1;
+
+            // 3. Cập nhật đề bài
+            this.instructionEl.innerHTML = `Bé hãy bấm để ăn <span class="text-orange-600 font-black text-2xl">${this.targetToEat}</span> miếng bánh nhé!`;
+            
+            // 4. Cập nhật hiển thị phân số ban đầu
+            this.updateStats();
+
+            // 5. Vẽ Pizza
+            this.drawPizza();
+        }
+
+        drawPizza() {
+            const radius = 100;
+            
+            // Nếu chỉ có 1 miếng (trường hợp hiếm hoặc logic khác, ở đây min=2 nên vẽ sector bình thường)
+            // Góc của mỗi miếng
+            const angleStep = (Math.PI * 2) / this.totalSlices;
+
+            for (let i = 0; i < this.totalSlices; i++) {
+                // Tính toán tọa độ vẽ hình quạt (Pie slice)
+                const startAngle = i * angleStep - Math.PI / 2; // -PI/2 để bắt đầu từ 12 giờ
+                const endAngle = (i + 1) * angleStep - Math.PI / 2;
+
+                const x1 = Math.cos(startAngle) * radius;
+                const y1 = Math.sin(startAngle) * radius;
+                const x2 = Math.cos(endAngle) * radius;
+                const y2 = Math.sin(endAngle) * radius;
+
+                // Lệnh vẽ SVG Path: Move to center -> Line to rim -> Arc -> Line back to center
+                // Flag largeArc: nếu góc > 180 độ (chỉ xảy ra khi chia 1, ở đây min chia 2 nên luôn là 0)
+                const largeArcFlag = 0; 
+
+                const d = `M 0 0 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+
+                // Tạo Group chứa Slice và Pepperoni
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("class", "pizza-slice");
+                g.onclick = (e) => this.eatSlice(e.currentTarget);
+
+                // Vẽ vỏ/phô mai
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", d);
+                g.appendChild(path);
+
+                // Vẽ Pepperoni trang trí (tính tâm của slice để đặt)
+                const midAngle = startAngle + angleStep / 2;
+                const dist = radius * 0.6; // Khoảng cách từ tâm
+                const pepX = Math.cos(midAngle) * dist;
+                const pepY = Math.sin(midAngle) * dist;
+                
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", pepX);
+                circle.setAttribute("cy", pepY);
+                circle.setAttribute("r", 6);
+                circle.setAttribute("class", "pepperoni");
+                g.appendChild(circle);
+
+                this.svg.appendChild(g);
+            }
+        }
+
+        eatSlice(element) {
+            if (!this.isPlaying) return;
+            
+            // Nếu miếng này đã ăn rồi thì thôi
+            if (element.classList.contains('slice-eaten')) return;
+
+            // Ăn miếng bánh
+            element.classList.add('slice-eaten');
+            this.eatenCount++;
+            
+            // Cập nhật số liệu
+            this.updateStats();
+
+            // Kiểm tra kết quả
+            this.checkWin();
+        }
+
+        updateStats() {
+            // Cập nhật text phân số
+            this.eatenNumEl.textContent = this.eatenCount;
+            this.remainNumEl.textContent = this.totalSlices - this.eatenCount;
+            
+            this.denomEl1.textContent = this.totalSlices;
+            this.denomEl2.textContent = this.totalSlices;
+        }
+
+        checkWin() {
+            if (this.eatenCount === this.targetToEat) {
+                this.isPlaying = false;
+                this.msg.innerHTML = "<span class='text-green-600'>Giỏi quá! Bé đã chia đúng phần bánh rồi! 🎉</span>";
+                this.nextBtn.classList.remove('hidden');
+            } else if (this.eatenCount > this.targetToEat) {
+                this.isPlaying = false;
+                this.msg.innerHTML = "<span class='text-red-500'>Ôi no quá! Bé lỡ ăn nhiều hơn yêu cầu rồi! 😅</span>";
+                // Cho nút next hiện ra để chơi lại
+                setTimeout(() => this.nextBtn.classList.remove('hidden'), 1000);
+            }
+        }
+    }
+
+    // Khởi tạo game
+    const game = new PizzaGame();
+
+</script>
+</body>
+</html>

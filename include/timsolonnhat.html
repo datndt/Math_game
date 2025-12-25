@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thử Tài Sắp Xếp Số - Phân Cấp Độ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff;
+            user-select: none;
+        }
+
+        /* Hiệu ứng thẻ số */
+        .number-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .number-card:hover {
+            transform: translateY(-5px);
+            background-color: #bae6fd;
+        }
+        .number-card:active { transform: scale(0.95); }
+
+        /* Trạng thái đúng/sai */
+        .card-correct {
+            background-color: #22c55e !important; color: white !important;
+            border-color: #15803d !important; transform: scale(1.1) !important;
+        }
+        .card-wrong {
+            background-color: #ef4444 !important; color: white !important;
+            border-color: #b91c1c !important; opacity: 0.5;
+        }
+        .card-dimmed { opacity: 0.3; pointer-events: none; }
+
+        /* Level Buttons */
+        .level-btn {
+            transition: all 0.2s;
+            opacity: 0.6;
+            transform: scale(0.95);
+        }
+        .level-btn-active {
+            opacity: 1;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-weight: 800;
+            border-width: 3px;
+        }
+
+        /* Animation */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up { animation: slideUp 0.4s ease-out; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 md:p-4">
+
+    <div class="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border-4 border-sky-100 overflow-hidden">
+        
+        <div class="bg-sky-50 p-4 border-b-2 border-sky-100">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-sky-800 text-center mb-4 uppercase">Sắp Xếp Tìm Số</h1>
+            
+            <div class="flex justify-center gap-3">
+                <button onclick="changeLevel('easy')" id="btn-easy" class="level-btn bg-green-100 text-green-700 border-2 border-green-400 px-4 py-2 rounded-full font-bold">
+                    🌱 Dễ (4 số)
+                </button>
+                <button onclick="changeLevel('medium')" id="btn-medium" class="level-btn bg-yellow-100 text-yellow-700 border-2 border-yellow-400 px-4 py-2 rounded-full font-bold">
+                    🌿 Vừa (6 số)
+                </button>
+                <button onclick="changeLevel('hard')" id="btn-hard" class="level-btn bg-red-100 text-red-700 border-2 border-red-400 px-4 py-2 rounded-full font-bold">
+                    🌳 Khó (10 số)
+                </button>
+            </div>
+        </div>
+
+        <div class="p-4 md:p-8 text-center min-h-[400px] flex flex-col justify-between">
+            
+            <div>
+                <div class="inline-block bg-white border-2 border-orange-300 text-orange-800 px-6 py-3 rounded-2xl text-xl md:text-2xl font-bold shadow-sm mb-6">
+                    🕵️ <span id="question-text">...</span>
+                </div>
+
+                <div id="numbers-grid" class="flex flex-wrap justify-center gap-3 md:gap-4 mb-6">
+                    </div>
+            </div>
+
+            <div>
+                <div id="result-area" class="h-10 mb-2"></div>
+
+                <div id="explanation" class="hidden fade-in-up bg-slate-50 rounded-xl p-3 border border-slate-200">
+                    <p class="text-slate-400 text-xs font-bold uppercase mb-2 tracking-wider">Thứ tự từ bé đến lớn:</p>
+                    <div id="sorted-list" class="flex flex-wrap justify-center gap-2 text-sm md:text-base font-bold text-slate-600"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 p-4 border-t border-slate-100 flex justify-center">
+            <button onclick="initGame()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition-transform active:scale-95 flex items-center gap-2">
+                <span>🔄</span> Bài Tiếp Theo
+            </button>
+        </div>
+    </div>
+
+<script>
+    // --- CẤU HÌNH CẤP ĐỘ ---
+    const LEVELS = {
+        easy: { 
+            count: 4, 
+            min: 1, max: 20, 
+            types: ['min', 'max'] // Chỉ hỏi lớn nhất/nhỏ nhất
+        },
+        medium: { 
+            count: 6, 
+            min: 10, max: 50, 
+            types: ['min', 'max', 'nth'] // Thêm hỏi thứ N (chỉ thứ 2)
+        },
+        hard: { 
+            count: 10, 
+            min: 10, max: 99, 
+            types: ['min', 'max', 'nth_complex'] // Hỏi thứ 3, 4...
+        }
+    };
+
+    let currentLevel = 'easy'; // Mặc định
+    let currentNumbers = [];
+    let currentTarget = null;
+    let isGameActive = true;
+
+    // --- LOGIC CHÍNH ---
+
+    function changeLevel(levelName) {
+        currentLevel = levelName;
+        
+        // Cập nhật UI nút bấm
+        ['easy', 'medium', 'hard'].forEach(l => {
+            const btn = document.getElementById(`btn-${l}`);
+            if (l === levelName) {
+                btn.classList.add('level-btn-active');
+            } else {
+                btn.classList.remove('level-btn-active');
+            }
+        });
+
+        initGame();
+    }
+
+    function generateUniqueNumbers(count, min, max) {
+        const nums = new Set();
+        while(nums.size < count) {
+            nums.add(Math.floor(Math.random() * (max - min + 1)) + min);
+        }
+        return Array.from(nums);
+    }
+
+    function generateQuestion(sortedArr, config) {
+        const possibleTypes = config.types;
+        const type = possibleTypes[Math.floor(Math.random() * possibleTypes.length)];
+        
+        let targetVal, text, hlIndex;
+
+        if (type === 'min') {
+            targetVal = sortedArr[0];
+            text = "Tìm số BÉ NHẤT";
+            hlIndex = 0;
+        } 
+        else if (type === 'max') {
+            targetVal = sortedArr[sortedArr.length - 1];
+            text = "Tìm số LỚN NHẤT";
+            hlIndex = sortedArr.length - 1;
+        } 
+        else if (type === 'nth') {
+            // Cho Level Medium: Tìm số bé/lớn thứ 2
+            const isSmall = Math.random() > 0.5;
+            if(isSmall) {
+                targetVal = sortedArr[1]; // Bé thứ 2
+                text = "Tìm số BÉ thứ 2";
+                hlIndex = 1;
+            } else {
+                targetVal = sortedArr[sortedArr.length - 2]; // Lớn thứ 2
+                text = "Tìm số LỚN thứ 2";
+                hlIndex = sortedArr.length - 2;
+            }
+        }
+        else if (type === 'nth_complex') {
+            // Cho Level Hard: Tìm thứ 3 hoặc thứ 4
+            const k = Math.floor(Math.random() * 2) + 3; // k = 3 hoặc 4
+            const isSmall = Math.random() > 0.5;
+            
+            if(isSmall) {
+                targetVal = sortedArr[k - 1];
+                text = `Tìm số BÉ thứ ${k}`;
+                hlIndex = k - 1;
+            } else {
+                targetVal = sortedArr[sortedArr.length - k];
+                text = `Tìm số LỚN thứ ${k}`;
+                hlIndex = sortedArr.length - k;
+            }
+        }
+
+        return { val: targetVal, text: text, sortedIndex: hlIndex };
+    }
+
+    function initGame() {
+        isGameActive = true;
+        document.getElementById('result-area').innerHTML = '';
+        document.getElementById('explanation').classList.add('hidden');
+
+        const config = LEVELS[currentLevel];
+
+        // Sinh số theo config level
+        currentNumbers = generateUniqueNumbers(config.count, config.min, config.max);
+        
+        // Bản sao đã sắp xếp để kiểm tra
+        const sortedNumbers = [...currentNumbers].sort((a, b) => a - b);
+
+        // Sinh câu hỏi
+        currentTarget = generateQuestion(sortedNumbers, config);
+        document.getElementById('question-text').textContent = currentTarget.text;
+
+        // Render Lưới
+        renderGrid(currentNumbers);
+        
+        // Chuẩn bị giải thích
+        renderExplanation(sortedNumbers, currentTarget.val);
+    }
+
+    function renderGrid(numbers) {
+        const container = document.getElementById('numbers-grid');
+        container.innerHTML = '';
+
+        // Kích thước ô phụ thuộc số lượng (nhiều số thì ô nhỏ đi một chút)
+        const sizeClass = numbers.length > 8 ? 'w-16 h-16 text-xl' : 'w-20 h-20 text-3xl';
+
+        numbers.forEach((num) => {
+            const btn = document.createElement('div');
+            btn.className = `number-card bg-white border-2 border-sky-200 rounded-xl flex items-center justify-center font-extrabold text-sky-700 ${sizeClass}`;
+            btn.textContent = num;
+            btn.onclick = () => handleCardClick(btn, num);
+            container.appendChild(btn);
+        });
+    }
+
+    function renderExplanation(sortedArr, targetVal) {
+        const container = document.getElementById('sorted-list');
+        container.innerHTML = '';
+        
+        sortedArr.forEach((num, index) => {
+            const span = document.createElement('span');
+            span.className = 'px-2 py-1 border rounded bg-white min-w-[30px] text-center';
+            
+            if (num === targetVal) {
+                span.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
+            } else {
+                span.classList.add('border-slate-200');
+            }
+            span.textContent = num;
+            container.appendChild(span);
+
+            if (index < sortedArr.length - 1) {
+                const arrow = document.createElement('span');
+                arrow.innerHTML = '&lt;'; // Dấu <
+                arrow.className = 'text-slate-300';
+                container.appendChild(arrow);
+            }
+        });
+    }
+
+    function handleCardClick(element, value) {
+        if (!isGameActive) return;
+
+        const resultArea = document.getElementById('result-area');
+        const cards = document.querySelectorAll('.number-card');
+
+        if (value === currentTarget.val) {
+            isGameActive = false;
+            element.classList.add('card-correct');
+            
+            cards.forEach(card => {
+                if (card !== element) card.classList.add('card-dimmed');
+            });
+
+            resultArea.innerHTML = `<span class="text-green-600 text-xl font-bold animate-bounce">🎉 Chính xác! Giỏi quá!</span>`;
+            document.getElementById('explanation').classList.remove('hidden');
+        } else {
+            element.classList.add('card-wrong');
+            resultArea.innerHTML = `<span class="text-red-500 font-bold">Chưa đúng đâu, nhìn kỹ lại nhé! 🤔</span>`;
+        }
+    }
+
+    // Khởi động mặc định level Easy
+    changeLevel('easy');
+
+</script>
+</body>
+</html>

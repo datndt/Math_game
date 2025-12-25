@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nhận Biết Quy Luật Đếm</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff; /* Xanh nhạt hơn */
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 0 #bae6fd;
+            border: 4px solid #7dd3fc;
+        }
+        
+        /* Containers */
+        #sequence-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px;
+        }
+
+        /* Ô trống để điền (Slot) */
+        .slot-box {
+            width: 50px;
+            height: 50px;
+            border: 3px dashed #94a3b8; /* Nét đứt khi trống */
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0891b2;
+            background-color: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        /* Số đã được điền */
+        .slot-filled {
+            border: 3px solid #06b6d4;
+            background-color: #e0f2fe;
+            color: #0e7490;
+            box-shadow: 0 4px 0 #67e8f9;
+            transform: translateY(-2px);
+            border-style: solid;
+        }
+
+        /* Số cố định trong dãy (Không bấm được) */
+        .fixed-number {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #16a34a;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #16a34a;
+            background-color: #dcfce7;
+            box-shadow: 0 4px 0 #86efac;
+            pointer-events: none; /* Không cho tương tác */
+        }
+
+        /* Bong bóng lựa chọn (Option Bubble) */
+        .option-bubble {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            padding: 12px 20px;
+            min-width: 50px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 50px; /* Hình viên thuốc/tròn */
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #475569;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #cbd5e1;
+            transition: all 0.1s;
+            margin: 6px;
+        }
+
+        .option-bubble:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #cbd5e1;
+        }
+        
+        /* Hiệu ứng khi chọn đúng/sai */
+        .slot-correct {
+            background-color: #dcfce7 !important;
+            border-color: #22c55e !important;
+            color: #15803d !important;
+            box-shadow: 0 4px 0 #86efac !important;
+        }
+        .slot-wrong {
+            background-color: #fee2e2 !important;
+            border-color: #ef4444 !important;
+            color: #b91c1c !important;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        /* Ẩn bong bóng đã chọn */
+        .bubble-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-3">
+
+    <div class="game-card w-full max-w-4xl p-4 md:p-8 text-center">
+        
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-xl md:text-2xl font-extrabold text-cyan-700">Tìm Số Còn Thiếu (Quy Luật Đếm)</h1>
+            <select id="step-size" onchange="game.init()" class="bg-white border-2 border-cyan-200 text-cyan-700 font-bold py-1 px-3 rounded-lg text-sm">
+                <option value="2">Bước: +2</option>
+                <option value="5">Bước: +5</option>
+                <option value="10">Bước: +10</option>
+                <option value="3">Bước: +3</option>
+                <option value="4">Bước: +4</option>
+            </select>
+        </div>
+
+        <div class="mb-6">
+            <p class="text-cyan-400 font-bold text-xs uppercase mb-1">Điền số còn thiếu vào dãy:</p>
+            <div id="sequence-container">
+                </div>
+        </div>
+
+        <div class="bg-slate-50 rounded-2xl p-4 border-2 border-slate-100 mb-6">
+            <p class="text-slate-400 font-bold text-sm mb-2">Chọn và kéo thả số vào ô trống:</p>
+            <div id="options-container" class="flex flex-wrap justify-center min-h-[100px]">
+                </div>
+        </div>
+
+        <div class="flex justify-center gap-3">
+            <button onclick="game.check()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_0_#15803d] active:shadow-none active:translate-y-[4px] transition-all text-xl">
+                Kiểm Tra
+            </button>
+            <button onclick="game.init()" class="bg-white border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold py-3 px-6 rounded-xl transition-all">
+                Tiếp Theo ➜
+            </button>
+        </div>
+        
+        <p id="msg" class="mt-4 h-6 text-lg font-bold text-cyan-600"></p>
+    </div>
+
+<script>
+    /* === CLASS MỚI: NHẬN BIẾT QUY LUẬT ĐẾM === */
+    class SkipCountingGame {
+        constructor() {
+            this.sequenceContainer = document.getElementById('sequence-container');
+            this.optionsContainer = document.getElementById('options-container');
+            this.stepSelect = document.getElementById('step-size');
+            this.msg = document.getElementById('msg');
+            
+            this.stepSize = 2; // Quy luật (VD: +2, +5, +10)
+            this.sequenceLength = 10; // Độ dài mặc định của dãy số
+            
+            this.fullSequence = []; // Dãy số đầy đủ
+            this.correctAnswers = []; // Các số cần điền (đáp án đúng)
+            this.userSequence = []; // Dãy số hiện tại (có cả số cố định và ô trống/số đã điền)
+            this.optionPool = []; // Pool các số để chọn
+
+            this.init();
+        }
+
+        init() {
+            this.msg.innerHTML = "";
+            this.stepSize = parseInt(this.stepSelect.value);
+            
+            // 1. Sinh Dãy số Đầy đủ
+            const startNumber = this.generateStartNumber();
+            this.fullSequence = [];
+            for (let i = 0; i < this.sequenceLength; i++) {
+                this.fullSequence.push(startNumber + i * this.stepSize);
+            }
+
+            // 2. Chọn vị trí cần điền (slots)
+            this.correctAnswers = [];
+            this.userSequence = [];
+            let emptyCount = 0;
+            
+            this.fullSequence.forEach((num, index) => {
+                // Giữ lại 3 số cố định (đầu, giữa, cuối) và ngẫu nhiên 40% còn lại.
+                const isFixed = (index === 0 || index === this.sequenceLength - 1 || index === Math.floor(this.sequenceLength / 2) || Math.random() < 0.4);
+                
+                if (isFixed) {
+                    this.userSequence.push({ type: 'fixed', value: num });
+                } else {
+                    this.userSequence.push({ type: 'empty', value: null, correctValue: num, id: emptyCount++ });
+                    this.correctAnswers.push(num);
+                }
+            });
+            
+            // Đảm bảo phải có ít nhất 3 ô trống
+            while (this.correctAnswers.length < 3) this.init();
+
+
+            // 3. Render Dãy số
+            this.renderSequence();
+
+            // 4. Sinh Options (Bong bóng)
+            this.generateOptions();
+        }
+        
+        // Sinh số bắt đầu dựa trên bước nhảy
+        generateStartNumber() {
+            const minMultiplier = 2;
+            const maxMultiplier = 10;
+            // Số bắt đầu là bội số của stepSize hoặc số gần đó
+            const multiplier = Math.floor(Math.random() * (maxMultiplier - minMultiplier + 1)) + minMultiplier;
+            const start = multiplier * this.stepSize;
+            
+            // Đảm bảo dãy số có độ lớn hợp lý
+            return Math.floor(start + Math.random() * 10);
+        }
+
+
+        renderSequence() {
+            this.sequenceContainer.innerHTML = '';
+            
+            this.userSequence.forEach((item, index) => {
+                if (item.type === 'fixed') {
+                    // Số cố định
+                    const fixed = document.createElement('div');
+                    fixed.className = 'fixed-number';
+                    fixed.textContent = item.value;
+                    this.sequenceContainer.appendChild(fixed);
+                } else {
+                    // Ô trống/Ô đã điền
+                    const slot = document.createElement('div');
+                    slot.dataset.slotId = item.id;
+                    
+                    if (item.value === null) {
+                        slot.className = 'slot-box';
+                        slot.textContent = '?';
+                        // Gán sự kiện cho phép kéo thả
+                        slot.ondragover = (e) => e.preventDefault();
+                        slot.ondrop = (e) => this.dropOption(e, item.id);
+                        
+                    } else {
+                        slot.className = 'slot-box slot-filled';
+                        slot.textContent = item.value;
+                        // Bấm vào ô đã điền thì trả lại kho
+                        slot.onclick = () => this.removeAnswer(item.id, item.value);
+                    }
+                    this.sequenceContainer.appendChild(slot);
+                }
+            });
+        }
+
+        generateOptions() {
+            this.optionsContainer.innerHTML = '';
+            this.optionPool = [];
+            
+            // A. Thêm các đáp án ĐÚNG vào pool
+            this.correctAnswers.forEach(num => this.optionPool.push({ val: num, id: Math.random() }));
+
+            // B. Thêm các đáp án SAI (Distractors)
+            // 1. Số gần đáp án (VD: 10 -> thêm 9, 11)
+            this.correctAnswers.forEach(num => {
+                this.optionPool.push({ val: num + 1, id: Math.random() });
+                this.optionPool.push({ val: num - 1, id: Math.random() });
+            });
+            // 2. Số nhảy sai (VD: Step +2 -> thêm số của Step +5)
+            const wrongStep = this.stepSize === 5 ? 2 : 5;
+            this.correctAnswers.forEach(num => {
+                this.optionPool.push({ val: num + wrongStep, id: Math.random() });
+            });
+            
+            // C. Lọc trùng lặp, xáo trộn pool và Render
+            const uniqueOptions = Array.from(new Set(this.optionPool.map(o => o.val)))
+                                    .map(val => ({ val: val, id: Math.random() }));
+                                    
+            uniqueOptions.sort(() => Math.random() - 0.5);
+
+            uniqueOptions.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-bubble hover:bg-cyan-50 hover:border-cyan-200';
+                btn.textContent = opt.val;
+                btn.id = `opt-${opt.id}`; 
+                
+                // Kéo thả
+                btn.draggable = true;
+                btn.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        value: opt.val,
+                        optionId: opt.id
+                    }));
+                };
+
+                // Nhấn để chọn (Fallback cho mobile/người dùng không kéo thả)
+                btn.onclick = () => this.selectOption(opt);
+                
+                this.optionsContainer.appendChild(btn);
+            });
+        }
+        
+        // Xử lý khi nhấn vào option (cho mobile)
+        selectOption(opt) {
+            // Tìm ô trống đầu tiên
+            const emptySlotIndex = this.userSequence.findIndex(item => item.type === 'empty' && item.value === null);
+            
+            if (emptySlotIndex !== -1) {
+                const emptyItem = this.userSequence[emptySlotIndex];
+                
+                // Điền vào ô trống
+                emptyItem.value = opt.val;
+                
+                // Ẩn bong bóng này đi
+                const btn = document.getElementById(`opt-${opt.id}`);
+                if(btn) btn.classList.add('bubble-hidden');
+
+                // Render lại dãy số
+                this.renderSequence();
+            } else {
+                 this.msg.innerHTML = "<span class='text-orange-500'>Đã điền hết các ô trống! Bấm Kiểm Tra.</span>";
+            }
+        }
+
+        // Xử lý kéo thả (cho desktop)
+        dropOption(e, slotId) {
+            e.preventDefault();
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const { value, optionId } = data;
+            
+            const slotItem = this.userSequence.find(item => item.type === 'empty' && item.id === slotId);
+
+            if (slotItem && slotItem.value === null) {
+                // Điền vào ô trống
+                slotItem.value = value;
+                
+                // Ẩn bong bóng này đi
+                const btn = document.getElementById(`opt-${optionId}`);
+                if(btn) btn.classList.add('bubble-hidden');
+                
+                // Render lại dãy số
+                this.renderSequence();
+            }
+        }
+
+        removeAnswer(slotId, val) {
+            // Tìm ô trống đang chứa đáp án
+            const slotItem = this.userSequence.find(item => item.type === 'empty' && item.id === slotId);
+            if (slotItem) {
+                slotItem.value = null;
+            }
+            
+            // Tìm option tương ứng trong pool để hiện lại
+            // Ở đây ta duyệt UI để tìm nút đang ẩn có text trùng khớp
+            const hiddenBtns = Array.from(this.optionsContainer.querySelectorAll('.bubble-hidden'));
+            // Tìm option có giá trị trùng khớp để hiện lại
+            const matchBtn = hiddenBtns.find(b => parseInt(b.textContent) === val);
+            
+            if(matchBtn) {
+                matchBtn.classList.remove('bubble-hidden');
+            }
+
+            this.renderSequence();
+            this.msg.textContent = "";
+        }
+
+        check() {
+            // Kiểm tra xem đã điền hết chưa
+            const isCompleted = this.userSequence.every(item => item.type === 'fixed' || item.value !== null);
+            if (!isCompleted) {
+                this.msg.innerHTML = "<span class='text-orange-500'>Bé hãy điền đầy đủ các ô trống nhé!</span>";
+                return;
+            }
+
+            let isCorrect = true;
+            const slots = this.sequenceContainer.querySelectorAll('.slot-box');
+            let slotIndex = 0; // Index của các ô trống (slots)
+
+            this.userSequence.forEach(item => {
+                if (item.type === 'empty') {
+                    const currentSlot = slots[slotIndex];
+                    currentSlot.classList.remove('slot-correct', 'slot-wrong');
+
+                    if (item.value === item.correctValue) {
+                        currentSlot.classList.add('slot-correct');
+                    } else {
+                        currentSlot.classList.add('slot-wrong');
+                        isCorrect = false;
+                    }
+                    slotIndex++;
+                }
+            });
+
+            if (isCorrect) {
+                this.msg.innerHTML = "<span class='text-green-600'>Chính xác! Bé đã tìm ra quy luật đếm +${this.stepSize}! 🌟</span>";
+            } else {
+                this.msg.innerHTML = "<span class='text-red-500'>Có chỗ chưa đúng, thử sắp xếp lại và kiểm tra quy luật nhé!</span>";
+                setTimeout(() => {
+                    slots.forEach(s => s.classList.remove('slot-wrong'));
+                }, 1500);
+            }
+        }
+    }
+
+    // Khởi tạo trò chơi
+    const game = new SkipCountingGame();
+</script>
+</body>
+</html>

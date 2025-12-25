@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luyện Thi TIMO Mầm Non (Đa Dạng)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --light-bg: #f8f9fa;
+            --dark-text: #343a40;
+            --border-radius: 16px;
+        }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #eef5ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: var(--dark-text);
+        }
+        .container {
+            background-color: white;
+            padding: 30px 40px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            width: 95%;
+            max-width: 800px;
+            transition: all 0.3s ease;
+        }
+
+        /* --- Màn hình bắt đầu --- */
+        #start-screen h1 { color: var(--primary-color); text-align: center; }
+        #start-btn {
+            background-color: var(--primary-color); color: white; border: none;
+            padding: 15px 30px; font-size: 1.2rem; border-radius: 12px;
+            cursor: pointer; width: 100%; margin-top: 20px; font-weight: 600;
+        }
+        #start-btn:hover { background-color: #0056b3; }
+
+        /* --- Màn hình game --- */
+        #game-screen { display: none; }
+        .game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        #progress-text { font-size: 1.2rem; font-weight: 700; color: var(--primary-color); }
+        #score-text { font-size: 1.2rem; font-weight: 700; color: var(--success-color); }
+
+        #question-area {
+            background: var(--light-bg); border-radius: var(--border-radius);
+            padding: 20px; margin: 20px 0; min-height: 100px;
+            font-size: 1.3rem; line-height: 1.6; text-align: center;
+        }
+        #question-area strong { color: var(--danger-color); }
+        /* Tăng kích thước Emoji cho dễ đếm */
+        #emoji-display { font-size: 2.5rem; margin-top: 15px; letter-spacing: 0.2em; }
+        
+        #options-area { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .option-btn {
+            background-color: white; border: 2px solid #ddd; border-radius: 12px;
+            padding: 20px; font-size: 1.1rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s ease; display: flex; align-items: center;
+        }
+        .option-btn:hover {
+            border-color: var(--primary-color); color: var(--primary-color);
+            transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .option-btn.selected-correct {
+            background-color: var(--success-color); border-color: var(--success-color);
+            color: white; animation: bounce 0.5s;
+        }
+        .option-btn.selected-wrong {
+            background-color: var(--danger-color); border-color: var(--danger-color);
+            color: white; animation: shake 0.5s;
+        }
+        .option-label { font-weight: 700; margin-right: 10px; font-size: 1.2rem; }
+
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
+        
+        /* Màn hình kết thúc */
+        #end-screen { display: none; text-align: center; }
+        #end-screen h2 { color: var(--success-color); font-size: 2rem; }
+        #end-score-text { font-size: 1.5rem; margin: 20px 0; }
+        #restart-btn {
+            background-color: var(--primary-color); color: white; border: none;
+            padding: 15px 30px; font-size: 1.2rem; border-radius: 12px;
+            cursor: pointer; margin-top: 20px; font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen">
+        <h1>Luyện Thi TIMO Mầm Non</h1>
+        <p>Bé sẽ làm 10 câu hỏi ngẫu nhiên thuộc các dạng đếm hình, tìm số, toán đố và tìm quy luật đơn giản.</p>
+        <button id="start-btn">Bắt đầu làm bài!</button>
+    </div>
+
+    <div id="game-screen">
+        <div class="game-header">
+            <div id="progress-text">Câu 1 / 10</div>
+            <div id="score-text">Điểm: 0</div>
+        </div>
+        <hr>
+        <div id="question-area"></div>
+        <div id="options-area"></div>
+    </div>
+    
+    <div id="end-screen">
+        <h2>Chúc mừng!</h2>
+        <p id="end-score-text"></p>
+        <button id="restart-btn">Làm lại bài khác</button>
+    </div>
+</div>
+
+<script>
+// --- DOM ELEMENTS ---
+const startScreen = document.getElementById('start-screen');
+const gameScreen = document.getElementById('game-screen');
+const endScreen = document.getElementById('end-screen');
+const startBtn = document.getElementById('start-btn');
+const restartBtn = document.getElementById('restart-btn');
+const progressText = document.getElementById('progress-text');
+const scoreText = document.getElementById('score-text');
+const questionArea = document.getElementById('question-area');
+const optionsArea = document.getElementById('options-area');
+const endScoreText = document.getElementById('end-score-text');
+
+// --- HÀM HỖ TRỢ ---
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+function getRandomItem(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+//======================================================================
+// PHẦN 1: CÁC "CÔNG THỨC" MẦM NON (GENERATORS)
+//======================================================================
+
+// Nguyên liệu cho các câu hỏi
+const names = ["An", "Bình", "Cường", "Dũng", "Hoa", "Lan", "Mai"];
+const items = ["cái kẹo", "quả bóng", "bông hoa", "quyển vở", "chiếc bánh"];
+const emojis = [
+    { target: '🍎', distractor: '🍌' },
+    { target: '🐶', distractor: '🐱' },
+    { target: '🚗', distractor: '🚲' },
+    { target: '☀️', distractor: '🌙' }
+];
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+/**
+ * Tạo 1 đáp án đúng và 3 đáp án nhiễu (dạng số)
+ */
+function generateNumericOptions(correctAnswer) {
+    let options = [correctAnswer];
+    while (options.length < 4) {
+        let distractor = correctAnswer + getRandomInt(-2, 2);
+        // Đảm bảo không trùng và không < 0
+        if (distractor !== correctAnswer && distractor >= 0 && !options.includes(distractor)) {
+            options.push(distractor);
+        }
+    }
+    return shuffleArray(options.map(String)); // Trả về mảng chuỗi
+}
+
+// --- DANH SÁCH CÁC HÀM TẠO CÂU HỎI MẦM NON ---
+
+/**
+ * DẠNG MẦM NON 1: ĐẾM HÌNH ẢNH (DÙNG EMOJI)
+ * (Giống Q1 Đề MN)
+ */
+function generateCountingEmoji() {
+    const { target, distractor } = getRandomItem(emojis);
+    const correctCount = getRandomInt(3, 7);
+    const distractorCount = getRandomInt(2, 4);
+    
+    let displayArray = [];
+    for (let i = 0; i < correctCount; i++) displayArray.push(target);
+    for (let i = 0; i < distractorCount; i++) displayArray.push(distractor);
+    
+    const questionText = `Bé hãy đếm xem có bao nhiêu ${target} nhé?
+        <div id="emoji-display">${shuffleArray(displayArray).join(' ')}</div>`;
+    
+    return {
+        questionText: questionText,
+        options: generateNumericOptions(correctCount),
+        correctAnswer: String(correctCount)
+    };
+}
+
+/**
+ * DẠNG MẦM NON 2: TOÁN ĐỐ CỘNG (SỐ NHỎ)
+ * (Giống Q12 Đề số 1)
+ */
+function generateStoryAdd() {
+    const name = getRandomItem(names);
+    const item = getRandomItem(items);
+    const num1 = getRandomInt(2, 5);
+    const num2 = getRandomInt(1, 4);
+    const correctAnswer = num1 + num2;
+    
+    const questionText = `Bạn <strong>${name}</strong> có <strong>${num1}</strong> ${item}. 
+        Mẹ cho ${name} thêm <strong>${num2}</strong> ${item} nữa. 
+        Hỏi ${name} có tất cả bao nhiêu ${item}?`;
+        
+    return {
+        questionText: questionText,
+        options: generateNumericOptions(correctAnswer),
+        correctAnswer: String(correctAnswer)
+    };
+}
+
+/**
+ * DẠNG MẦM NON 3: TOÁN ĐỐ TRỪ (SỐ NHỎ)
+ */
+function generateStorySubtract() {
+    const name = getRandomItem(names);
+    const item = getRandomItem(items);
+    const num1 = getRandomInt(5, 9); // Bắt đầu với số lớn hơn
+    const num2 = getRandomInt(1, 4); // Trừ đi số nhỏ hơn
+    const correctAnswer = num1 - num2;
+    
+    const questionText = `Bạn <strong>${name}</strong> có <strong>${num1}</strong> ${item}. 
+        ${name} đã cho bạn <strong>${num2}</strong> ${item}. 
+        Hỏi ${name} còn lại bao nhiêu ${item}?`;
+        
+    return {
+        questionText: questionText,
+        options: generateNumericOptions(correctAnswer),
+        correctAnswer: String(correctAnswer)
+    };
+}
+
+/**
+ * DẠNG MẦM NON 4: SO SÁNH SỐ (LỚN NHẤT / NHỎ NHẤT)
+ * (Giống Q14 Đề số 1)
+ */
+function generateNumberCompare() {
+    const type = (Math.random() > 0.5) ? 'lớn nhất' : 'nhỏ nhất';
+    let numbers = [];
+    while (numbers.length < 4) {
+        let num = getRandomInt(1, 20);
+        if (!numbers.includes(num)) {
+            numbers.push(num);
+        }
+    }
+    
+    const correctAnswer = (type === 'lớn nhất') ? Math.max(...numbers) : Math.min(...numbers);
+    
+    const questionText = `Tìm số <strong>${type}</strong> trong các số sau:
+        <br><strong>${numbers.join(', ')}</strong>`;
+        
+    return {
+        questionText: questionText,
+        options: shuffleArray(numbers.map(String)), // Các lựa chọn chính là các số đó
+        correctAnswer: String(correctAnswer)
+    };
+}
+
+/**
+ * DẠNG MẦM NON 5: QUY LUẬT CHỮ CÁI
+ * (Giống Q3 Đề MN: B, D, F, H,...)
+ */
+function generateLetterPattern() {
+    const step = (Math.random() > 0.5) ? 1 : 2; // Bước nhảy 1 (A,B,C) hoặc 2 (A,C,E)
+    const startIdx = getRandomInt(0, 10); // Bắt đầu từ A -> K
+    
+    const sequence = [
+        alphabet[startIdx],
+        alphabet[startIdx + step],
+        alphabet[startIdx + (step * 2)]
+    ];
+    const correctAnswer = alphabet[startIdx + (step * 3)];
+    
+    let options = [correctAnswer];
+    while (options.length < 4) {
+        let distractorIdx = getRandomInt(startIdx, startIdx + 8);
+        let distractor = alphabet[distractorIdx];
+        if (!options.includes(distractor) && !sequence.includes(distractor)) {
+            options.push(distractor);
+        }
+    }
+    
+    const questionText = `Tìm chữ cái tiếp theo trong dãy:
+        <br><strong>${sequence.join(', ')}, ___?</strong>`;
+        
+    return {
+        questionText: questionText,
+        options: shuffleArray(options),
+        correctAnswer: correctAnswer
+    };
+}
+
+//======================================================================
+// PHẦN 2: BỘ MÁY TẠO BÀI KIỂM TRA MẦM NON
+//======================================================================
+
+// Tập hợp TẤT CẢ các "công thức" Mầm non
+const preschoolGenerators = [
+    generateCountingEmoji,
+    generateStoryAdd,
+    generateStorySubtract,
+    generateNumberCompare,
+    generateLetterPattern,
+    // Thêm các hàm generator mới của bạn vào đây
+    // Ví dụ, nếu bạn làm được bài toán cân, hãy thêm: generateLogicBalance
+];
+
+let fullTest = [];
+let currentQuestionIndex = 0;
+let score = 0;
+let answered = false;
+const TOTAL_QUESTIONS = 10; // Đặt tổng số câu hỏi cho mỗi bài test
+
+/**
+ * Xây dựng một bài test đa dạng
+ * Bằng cách CHỌN NGẪU NHIÊN 10 "công thức" từ kho
+ */
+function buildTest() {
+    fullTest = [];
+    
+    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+        // Lấy ngẫu nhiên một "công thức" từ trong kho
+        const randomGenerator = getRandomItem(preschoolGenerators);
+        
+        // Chạy "công thức" đó để tạo ra 1 câu hỏi
+        fullTest.push(randomGenerator());
+    }
+}
+
+//======================================================================
+// PHẦN 3: LOGIC HIỂN THỊ VÀ CHƠI GAME (Giữ nguyên)
+//======================================================================
+
+function startGame() {
+    currentQuestionIndex = 0;
+    score = 0;
+    answered = false;
+    
+    buildTest(); // Tạo một bộ đề mới
+    
+    startScreen.style.display = 'none';
+    endScreen.style.display = 'none';
+    gameScreen.style.display = 'block';
+    
+    scoreText.textContent = `Điểm: 0`;
+    loadQuestion();
+}
+
+function loadQuestion() {
+    if (currentQuestionIndex >= fullTest.length) {
+        endGame();
+        return;
+    }
+    
+    answered = false;
+    const question = fullTest[currentQuestionIndex];
+    
+    progressText.textContent = `Câu ${currentQuestionIndex + 1} / ${TOTAL_QUESTIONS}`;
+    questionArea.innerHTML = question.questionText; // Dùng innerHTML để hiển thị <strong> và <div>
+    
+    optionsArea.innerHTML = '';
+    const optionLabels = ['A', 'B', 'C', 'D'];
+    
+    question.options.forEach((option, index) => {
+        const button = document.createElement('button');
+        button.classList.add('option-btn');
+        button.dataset.answer = option; 
+        
+        button.innerHTML = `
+            <span class="option-label">${optionLabels[index]}.</span>
+            <span>${option}</span>
+        `;
+        
+        button.addEventListener('click', () => checkAnswer(button));
+        optionsArea.appendChild(button);
+    });
+}
+
+function checkAnswer(selectedButton) {
+    if (answered) return;
+    answered = true;
+    
+    const selectedAnswer = selectedButton.dataset.answer;
+    const correctAnswer = fullTest[currentQuestionIndex].correctAnswer;
+
+    if (selectedAnswer === correctAnswer) {
+        score++;
+        scoreText.textContent = `Điểm: ${score}`;
+        selectedButton.classList.add('selected-correct');
+    } else {
+        selectedButton.classList.add('selected-wrong');
+        Array.from(optionsArea.children).forEach(btn => {
+            if (btn.dataset.answer === correctAnswer) {
+                btn.classList.add('selected-correct');
+            }
+        });
+    }
+    
+    setTimeout(() => {
+        currentQuestionIndex++;
+        loadQuestion();
+    }, 1500);
+}
+
+function endGame() {
+    gameScreen.style.display = 'none';
+    endScreen.style.display = 'block';
+    endScoreText.innerHTML = `Bé đã hoàn thành bài thi với số điểm: <strong>${score} / ${TOTAL_QUESTIONS}</strong>`;
+}
+
+// --- EVENT LISTENERS ---
+startBtn.addEventListener('click', startGame);
+restartBtn.addEventListener('click', startGame);
+
+</script>
+</body>
+</html>

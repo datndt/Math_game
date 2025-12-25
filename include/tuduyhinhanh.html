@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot & Tư Duy Hình Ảnh (v10 - Edit Mode)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body { font-family: 'Nunito', sans-serif; background-color: #f0fdfa; user-select: none; }
+        .game-card { background: white; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border: 3px solid #99f6e4; max-width: 800px; margin: 0 auto; }
+
+        /* GRID CONTAINER */
+        .grid-box {
+            display: grid; 
+            gap: 4px; padding: 8px;
+            background-color: #f1f5f9; 
+            border: 2px solid #cbd5e1;
+            border-radius: 8px; margin: 0 auto;
+            width: max-content; max-width: 100%; overflow: auto; 
+            transition: all 0.3s ease;
+        }
+
+        /* CELL STYLE */
+        .cell { 
+            width: 38px; height: 38px;
+            background-color: white; border-radius: 4px; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 1rem; position: relative;
+            box-shadow: 0 2px 0 #e5e7eb;
+            flex-shrink: 0;
+        }
+        
+        /* MÀU SẮC LOGIC */
+        .cell-active { background-color: #0d9488 !important; box-shadow: inset 0 0 0 2px #115e59; } 
+        .cell-orange { background-color: #f97316 !important; box-shadow: inset 0 0 0 2px #c2410c; } 
+        .cell-blue { background-color: #3b82f6 !important; box-shadow: inset 0 0 0 2px #1d4ed8; } 
+
+        /* MÀU SẮC MÊ CUNG & ROBOT */
+        .cell-wall { background-color: #334155 !important; border-radius: 4px; box-shadow: 0 4px 0 #1e293b; }
+        .cell-start { background-color: #22c55e !important; border: 2px dashed white; z-index: 5;}
+        .cell-end { background-color: #ef4444 !important; border: 2px dashed white; z-index: 5;}
+        .cell-path { background-color: #fbbf24 !important; border-radius: 50%; transform: scale(0.5); }
+        
+        /* ROBOT STYLES */
+        .robot-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 20; }
+        .robot-arrow {
+            width: 0; height: 0; 
+            border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 20px solid #3b82f6;
+            position: absolute; top: 6px; filter: drop-shadow(0 2px 1px rgba(0,0,0,0.2));
+        }
+        .robot-face { font-size: 18px; position: absolute; top: 10px; z-index: 21; }
+
+        /* UI ELEMENTS */
+        .tab-btn { font-size: 0.85rem; padding: 6px 12px; opacity: 0.6; border-bottom: 3px solid transparent; transition: 0.2s; }
+        .tab-btn:hover { background-color: #f0fdfa; }
+        .tab-btn.active { opacity: 1; border-bottom-color: #0d9488; color: #0f766e; background-color: #ccfbf1; font-weight: 800; }
+
+        .hidden-area { display: none !important; }
+        .hint-btn { font-size: 0.75rem; padding: 4px 8px; margin-top: 4px; background: #e0f2fe; color: #0369a1; border-radius: 4px; font-weight: bold; border: 1px solid #bae6fd; cursor: pointer; transition: all 0.2s;}
+        
+        .op-text { font-size: 1.5rem; font-weight: 800; color: #64748b; margin: 0 10px; }
+
+        /* COMMAND QUEUE STYLES (NEW) */
+        .cmd-icon {
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        /* Hiệu ứng khi di chuột vào lệnh để xóa */
+        .cmd-icon:hover {
+            transform: scale(1.1);
+            filter: brightness(1.1);
+            z-index: 10;
+        }
+        .cmd-icon:hover::after {
+            content: "✖";
+            position: absolute;
+            top: -5px; right: -5px;
+            background: red; color: white;
+            border-radius: 50%; width: 12px; height: 12px;
+            font-size: 8px; display: flex; align-items: center; justify-content: center;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2">
+
+    <div class="flex flex-wrap gap-1 mb-3 bg-white p-1 rounded-xl shadow-sm justify-center">
+        <button onclick="switchMode('OR')" id="tab-OR" class="tab-btn rounded-t-lg active">➕ Cộng</button>
+        <button onclick="switchMode('AND')" id="tab-AND" class="tab-btn rounded-t-lg">✖️ Giao</button>
+        <button onclick="switchMode('ROTATE')" id="tab-ROTATE" class="tab-btn rounded-t-lg">🔄 Xoay Hình</button>
+        <div class="w-[1px] h-6 bg-gray-300 mx-1 self-center"></div>
+        <button onclick="switchMode('PATH')" id="tab-PATH" class="tab-btn rounded-t-lg text-purple-700">🏃 Mê Cung</button>
+        <button onclick="switchMode('ROBOT')" id="tab-ROBOT" class="tab-btn rounded-t-lg text-blue-700">🤖 Robot</button>
+    </div>
+
+    <div class="game-card w-full p-4 text-center relative flex flex-col items-center">
+        
+        <div class="mb-4">
+            <h1 id="game-title" class="text-xl font-extrabold text-teal-700">Cộng Hình Khối</h1>
+            <p id="game-desc" class="text-xs text-teal-600 font-medium bg-teal-50 px-3 py-1 rounded-full inline-block mt-1">Luật chơi...</p>
+        </div>
+
+        <div id="area-logic" class="flex items-center justify-center gap-2 mb-4 transition-all w-full">
+            <div class="flex flex-col items-center">
+                <span class="text-gray-400 text-[10px] font-bold mb-1">HÌNH A</span>
+                <div id="grid-a" class="grid-box"></div>
+                <button id="btn-hint" onclick="animateHint()" class="hidden-area hint-btn">👁️ Xem xoay mẫu</button>
+            </div>
+            
+            <div id="operator-container" class="flex flex-col items-center justify-center min-w-[60px]">
+                <div id="operator" class="op-text">+</div>
+            </div>
+
+            <div id="container-b" class="flex flex-col items-center">
+                <span class="text-gray-400 text-[10px] font-bold mb-1">HÌNH B</span>
+                <div id="grid-b" class="grid-box"></div>
+            </div>
+
+            <div id="equals" class="op-text">=</div>
+        </div>
+
+        <div class="flex flex-col items-center relative w-full mb-4">
+            <span id="label-result" class="text-teal-700 font-bold mb-1 text-xs uppercase">Kết quả của bé</span>
+            <div id="grid-result" class="grid-box grid-box-large shadow-md"></div>
+        </div>
+
+        <div id="area-robot-controls" class="hidden-area w-full max-w-sm bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-inner mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-[10px] font-bold text-slate-500 uppercase">Lập trình:</span>
+                <span class="text-[10px] text-blue-600 font-bold" id="step-counter">0 Lệnh</span>
+            </div>
+            
+            <div id="command-queue" class="h-10 bg-white border border-slate-200 rounded mb-3 flex items-center px-2 overflow-x-auto whitespace-nowrap">
+                <span class="text-gray-300 text-xs italic w-full text-center">Chọn lệnh bên dưới...</span>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-2 mb-2">
+                <button onclick="addCommand('LEFT')" class="bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 rounded text-sm shadow-sm active:translate-y-0.5">↺ Trái</button>
+                <button onclick="addCommand('FORWARD')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 rounded text-sm shadow-sm active:translate-y-0.5">⬆ Thẳng</button>
+                <button onclick="addCommand('RIGHT')" class="bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 rounded text-sm shadow-sm active:translate-y-0.5">↻ Phải</button>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="resetCommands()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-600 font-bold py-1.5 rounded text-xs">Xóa Hết</button>
+                <button onclick="runRobot()" class="flex-[2] bg-green-500 hover:bg-green-600 text-white font-bold py-1.5 rounded text-sm shadow-sm active:translate-y-0.5">▶ CHẠY</button>
+            </div>
+        </div>
+
+        <div id="message" class="h-6 flex items-center justify-center text-base font-bold mb-3 px-2 text-center"></div>
+
+        <div id="global-controls" class="flex gap-3 justify-center">
+            <button onclick="checkAnswer()" id="btn-check" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-6 rounded-lg shadow-md border-b-4 border-teal-800 active:border-b-0 active:translate-y-1 text-sm">Kiểm Tra</button>
+            <button onclick="initGame()" class="bg-white border border-teal-200 text-teal-600 hover:bg-teal-50 font-bold py-2 px-4 rounded-lg text-sm">Bài Mới ➜</button>
+        </div>
+    </div>
+
+<script>
+    // --- VARIABLES ---
+    let MODE = 'OR';
+    let GRID_SIZE = 16, ROW_SIZE = 4;
+    let gridA = [], gridB = [], userGrid = [];
+    let rotateAngle = 90; 
+
+    // Robot logic
+    let mapData = { start: 0, end: 0, walls: [], startDir: 0 };
+    let robotCommands = [];
+    let robotState = { pos: 0, dir: 0 }; 
+    let isRobotRunning = false;
+
+    // --- SETUP ---
+    function switchMode(newMode) {
+        MODE = newMode;
+        isRobotRunning = false;
+
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tab-${MODE}`).classList.add('active');
+        
+        const areaLogic = document.getElementById('area-logic');
+        const areaRobot = document.getElementById('area-robot-controls');
+        const containerB = document.getElementById('container-b');
+        const operator = document.getElementById('operator');
+        const equals = document.getElementById('equals');
+        const btnCheck = document.getElementById('btn-check');
+        const btnHint = document.getElementById('btn-hint');
+        const title = document.getElementById('game-title');
+        const desc = document.getElementById('game-desc');
+        const gridAEl = document.getElementById('grid-a');
+
+        areaLogic.classList.remove('hidden-area');
+        areaRobot.classList.add('hidden-area');
+        containerB.classList.remove('hidden-area');
+        equals.classList.remove('hidden-area');
+        btnCheck.classList.remove('hidden-area');
+        btnHint.classList.add('hidden-area');
+        if(gridAEl) gridAEl.style.transform = 'none';
+
+        if (MODE === 'PATH' || MODE === 'ROBOT') {
+            ROW_SIZE = 8; GRID_SIZE = 64;
+        } else {
+            ROW_SIZE = 4; GRID_SIZE = 16;
+        }
+
+        if(MODE === 'OR') {
+            title.innerText = "Logic Cộng (+)"; desc.innerText = "Xanh (A) + Cam (B) = Tổng"; operator.innerText = "+";
+        } else if(MODE === 'AND') {
+            title.innerText = "Logic Giao (∩)"; desc.innerText = "Điểm chung giữa 2 hình"; operator.innerText = "∩";
+        } else if(MODE === 'ROTATE') {
+            title.innerText = "Xoay Hình Học"; desc.innerText = "Quan sát hình mẫu và xoay"; 
+            containerB.classList.add('hidden-area');
+            btnHint.classList.remove('hidden-area');
+        } else if(MODE === 'PATH') {
+            title.innerText = "Mê Cung"; desc.innerText = "Vẽ đường đi ngắn nhất";
+            areaLogic.classList.add('hidden-area');
+        } else if(MODE === 'ROBOT') {
+            title.innerText = "Lập Trình Robot"; desc.innerText = "Lập trình đưa Robot về đích";
+            areaLogic.classList.add('hidden-area'); areaRobot.classList.remove('hidden-area'); btnCheck.classList.add('hidden-area');
+        }
+
+        initGame();
+    }
+
+    // --- INIT ---
+    function initGame() {
+        userGrid = Array(GRID_SIZE).fill(0);
+        document.getElementById('message').innerHTML = '';
+        
+        const gridEl = document.getElementById('grid-a');
+        if(gridEl) gridEl.style.transform = 'rotate(0deg)';
+
+        if (MODE === 'ROBOT' || MODE === 'PATH') {
+            initMaze(MODE === 'ROBOT');
+            if(MODE === 'ROBOT') {
+                robotCommands = [];
+                updateCmdUI();
+            }
+        } else {
+            if (MODE === 'ROTATE') {
+                rotateAngle = Math.random() < 0.5 ? 90 : 180;
+                document.getElementById('operator').innerText = `↷ ${rotateAngle}°`;
+                document.getElementById('game-desc').innerText = `Hãy xoay hình mẫu ${rotateAngle} độ sang phải`;
+                gridA = generateRandomGrid(5); gridB = [];
+                renderGrid('grid-a', gridA, false, 'cell-active');
+            } 
+            else if (MODE === 'OR') {
+                gridA = Array(GRID_SIZE).fill(0);
+                gridB = Array(GRID_SIZE).fill(0);
+                let countA = 3 + Math.floor(Math.random() * 2);
+                let countB = 3 + Math.floor(Math.random() * 2);
+                let indices = Array.from({length: GRID_SIZE}, (_, i) => i);
+                indices.sort(() => Math.random() - 0.5); 
+                for(let i=0; i<countA; i++) gridA[indices[i]] = 1;
+                for(let i=countA; i<countA+countB; i++) gridB[indices[i]] = 1;
+                renderGrid('grid-a', gridA, false, 'cell-orange'); 
+                renderGrid('grid-b', gridB, false, 'cell-blue');   
+            }
+            else if (MODE === 'AND') {
+                let t = generateRandomGrid(3);
+                gridA = [...t]; gridB = [...t];
+                for(let i=0; i<GRID_SIZE; i++) {
+                    if(t[i]===0) { if(Math.random()<0.3) gridA[i]=1; if(Math.random()<0.3) gridB[i]=1; }
+                }
+                renderGrid('grid-a', gridA, false, 'cell-active');
+                renderGrid('grid-b', gridB, false, 'cell-active');
+            }
+            
+            if(MODE !== 'OR') {
+               if(MODE !== 'ROTATE') renderGrid('grid-b', gridB); 
+               if(MODE === 'ROTATE') renderGrid('grid-a', gridA); 
+            }
+            renderGrid('grid-result', userGrid, true);
+        }
+    }
+
+    function initMaze(isRobot) {
+        let solvable = false;
+        let attempt = 0;
+        while (!solvable && attempt < 200) {
+            attempt++;
+            mapData.walls = Array(GRID_SIZE).fill(0);
+            let wc = 15 + Math.floor(Math.random()*8);
+            for(let i=0; i<wc; i++) mapData.walls[Math.floor(Math.random()*GRID_SIZE)] = 1;
+            
+            let s=-1, e=-1;
+            while(s===-1||mapData.walls[s]) s=Math.floor(Math.random()*GRID_SIZE);
+            while(e===-1||mapData.walls[e]||s===e||Math.abs(s-e)<10) e=Math.floor(Math.random()*GRID_SIZE);
+            mapData.start=s; mapData.end=e; mapData.walls[s]=0; mapData.walls[e]=0;
+            if(solveBFS(s,e,mapData.walls)>0) solvable=true;
+        }
+
+        if(isRobot) {
+            let r=Math.floor(mapData.start/ROW_SIZE), c=mapData.start%ROW_SIZE;
+            let startDir = 0;
+            if(c<ROW_SIZE-1 && !mapData.walls[mapData.start+1]) startDir=1; 
+            else if(r<ROW_SIZE-1 && !mapData.walls[mapData.start+ROW_SIZE]) startDir=2; 
+            else if(c>0 && !mapData.walls[mapData.start-1]) startDir=3; 
+            else startDir=0; 
+
+            mapData.startDir = startDir;
+            robotState.pos = mapData.start;
+            robotState.dir = startDir;
+            renderRobot();
+        } else {
+            renderMaze();
+        }
+    }
+
+    function applyGridStyle(el) { el.style.gridTemplateColumns = `repeat(${ROW_SIZE}, 1fr)`; }
+
+    function renderGrid(id, data, interactive=false, colorClass='cell-active') {
+        const el = document.getElementById(id); el.innerHTML=''; applyGridStyle(el);
+        data.forEach((v, i)=>{
+            const c=document.createElement('div'); c.className='cell';
+            if(v) c.classList.add(colorClass); 
+            if(interactive) {
+                c.classList.add('interactive-cell', 'cursor-pointer');
+                c.onclick=()=>{ userGrid[i]^=1; c.classList.toggle('cell-active'); playSound('pop');};
+            }
+            el.appendChild(c);
+        });
+    }
+
+    function renderMaze() {
+        const el=document.getElementById('grid-result'); el.innerHTML=''; applyGridStyle(el);
+        for(let i=0; i<GRID_SIZE; i++){
+            const c=document.createElement('div'); c.className='cell interactive-cell cursor-pointer';
+            if(i===mapData.start) c.classList.add('cell-start');
+            else if(i===mapData.end) c.classList.add('cell-end');
+            else if(mapData.walls[i]) c.classList.add('cell-wall');
+            
+            c.onclick=()=>{
+                if(i!==mapData.start && i!==mapData.end && !mapData.walls[i]){
+                    userGrid[i]^=1; 
+                    if(userGrid[i]) c.classList.add('cell-path'); else c.classList.remove('cell-path');
+                }
+            };
+            el.appendChild(c);
+        }
+    }
+
+    function renderRobot() {
+        const el=document.getElementById('grid-result'); el.innerHTML=''; applyGridStyle(el);
+        for(let i=0; i<GRID_SIZE; i++){
+            const c=document.createElement('div'); c.className='cell';
+            if(mapData.walls[i]) c.classList.add('cell-wall');
+            else if(i===mapData.end) c.classList.add('cell-end');
+            else if(i===mapData.start) c.style.border='2px dashed #ccc';
+
+            if(i===robotState.pos) {
+                const con=document.createElement('div'); con.className='robot-container';
+                const arr=document.createElement('div'); arr.className='robot-arrow';
+                const face=document.createElement('div'); face.className='robot-face'; face.innerText='🤖';
+                con.appendChild(arr); con.appendChild(face);
+                con.style.transform = `rotate(${robotState.dir * 90}deg)`;
+                c.appendChild(con);
+            }
+            el.appendChild(c);
+        }
+    }
+
+    // --- ROBOT LOGIC WITH EDIT FEATURE ---
+    function addCommand(cmd) { 
+        if(!isRobotRunning) { 
+            robotCommands.push(cmd); 
+            updateCmdUI(); 
+        }
+    }
+
+    // TÍNH NĂNG MỚI: Xóa 1 lệnh tại vị trí index
+    function removeCommand(index) {
+        if(isRobotRunning) return;
+        robotCommands.splice(index, 1); // Xóa phần tử tại index
+        updateCmdUI(); // Cập nhật lại giao diện
+    }
+
+    function resetCommands() { 
+        if(isRobotRunning) return; 
+        robotCommands=[]; 
+        robotState.pos = mapData.start;
+        robotState.dir = mapData.startDir;
+        renderRobot(); 
+        updateCmdUI();
+        document.getElementById('message').innerText = '';
+    }
+
+    function updateCmdUI() {
+        const q=document.getElementById('command-queue');
+        const counter = document.getElementById('step-counter');
+        counter.innerText = `${robotCommands.length} Lệnh`;
+
+        if(!robotCommands.length) q.innerHTML='<span class="text-gray-300 text-xs italic w-full text-center">Chọn lệnh bên dưới...</span>';
+        else {
+            q.innerHTML='';
+            robotCommands.forEach((c, index)=>{
+                const s=document.createElement('span'); 
+                s.className='inline-flex items-center justify-center w-6 h-6 rounded mr-1 text-white text-[10px] font-bold cmd-icon ' + (c==='FORWARD'?'bg-blue-500':'bg-yellow-400');
+                s.innerText = c==='FORWARD'?'⬆':(c==='LEFT'?'↺':'↻');
+                s.title = "Bấm để xóa";
+                
+                // Gắn sự kiện click để xóa lệnh này
+                s.onclick = () => removeCommand(index);
+                
+                q.appendChild(s);
+            });
+            q.scrollLeft=q.scrollWidth;
+        }
+    }
+
+    async function runRobot() {
+        if(isRobotRunning || !robotCommands.length) return;
+        
+        if (!mapData.walls || mapData.walls.length !== GRID_SIZE) {
+            showMsg(false, "Lỗi dữ liệu. Bấm 'Bài Mới'.");
+            return;
+        }
+
+        isRobotRunning = true; 
+        document.getElementById('message').innerText='Đang chạy...';
+        
+        robotState.pos = mapData.start;
+        robotState.dir = mapData.startDir;
+        renderRobot(); 
+        
+        await new Promise(r=>setTimeout(r,500)); 
+
+        try {
+            for(let cmd of robotCommands) {
+                if(MODE !== 'ROBOT' || !isRobotRunning) break;
+
+                if(cmd==='LEFT') robotState.dir=(robotState.dir+3)%4;
+                else if(cmd==='RIGHT') robotState.dir=(robotState.dir+1)%4;
+                else {
+                    let n=-1, r=Math.floor(robotState.pos/ROW_SIZE), c=robotState.pos%ROW_SIZE;
+                    if(robotState.dir===0 && r>0) n=robotState.pos-ROW_SIZE;
+                    if(robotState.dir===1 && c<ROW_SIZE-1) n=robotState.pos+1;
+                    if(robotState.dir===2 && r<ROW_SIZE-1) n=robotState.pos+ROW_SIZE;
+                    if(robotState.dir===3 && c>0) n=robotState.pos-1;
+                    
+                    if(n!==-1 && !mapData.walls[n]) {
+                        robotState.pos=n;
+                    } else { 
+                        playSound('err'); 
+                        showMsg(false, "Đâm tường rồi!"); 
+                        isRobotRunning = false; 
+                        return; 
+                    }
+                }
+                
+                renderRobot(); 
+                playSound('pop'); 
+                await new Promise(r=>setTimeout(r,500));
+            }
+
+            if(isRobotRunning) {
+                if(robotState.pos === mapData.end) showMsg(true, "Về đích rồi!"); 
+                else showMsg(false, "Chưa tới đích!");
+            }
+        
+        } catch (error) {
+            console.error(error);
+            showMsg(false, "Có lỗi xảy ra");
+        } finally {
+            isRobotRunning = false;
+        }
+    }
+
+    // --- CHECK & UTILS ---
+    function checkAnswer() {
+        let ok = true;
+        if(MODE === 'ROTATE') {
+            for(let i=0; i<GRID_SIZE; i++) {
+                let r=Math.floor(i/ROW_SIZE), c=i%ROW_SIZE;
+                let srcIdx;
+                if (rotateAngle === 90) srcIdx = ((ROW_SIZE-1)-c)*ROW_SIZE + r;
+                else srcIdx = ((ROW_SIZE-1)-r)*ROW_SIZE + ((ROW_SIZE-1)-c);
+                if(userGrid[i] !== gridA[srcIdx]) { ok=false; break; }
+            }
+        } else if(MODE === 'PATH') {
+             const dist = solveBFS(mapData.start, mapData.end, mapData.walls);
+             const usr = userGrid.filter(x=>x).length;
+             if(dist>0 && usr===dist-1 && checkPathContinuity(mapData.start, mapData.end)) ok=true; else ok=false;
+        } else {
+            for(let i=0; i<GRID_SIZE; i++){
+                let exp = (MODE==='OR') ? (gridA[i]||gridB[i]) : (gridA[i]&&gridB[i]);
+                if(userGrid[i]!==(exp?1:0)) { ok=false; break; }
+            }
+        }
+        showMsg(ok);
+    }
+    
+    function animateHint() {
+        if(MODE !== 'ROTATE') return;
+        const gridEl = document.getElementById('grid-a');
+        gridEl.style.transform = `rotate(${rotateAngle}deg)`;
+        setTimeout(() => { gridEl.style.transform = 'rotate(0deg)'; }, 1500);
+    }
+
+    function generateRandomGrid(n) { let g=Array(GRID_SIZE).fill(0); for(let i=0;i<n;i++) g[Math.floor(Math.random()*GRID_SIZE)]=1; return g; }
+    function solveBFS(s,e,w) { let q=[[s,0]], v=new Set([s]); while(q.length){ let [c,d]=q.shift(); if(c===e) return d; getNb(c).forEach(n=>{ if(!v.has(n)&&!w[n]){v.add(n);q.push([n,d+1])}}); } return -1; }
+    function checkPathContinuity(s,e) { 
+        let set=new Set(); userGrid.forEach((v,i)=>{if(v)set.add(i)}); 
+        let q=[s],v=new Set([s]),reach=false; 
+        while(q.length){ let c=q.shift(); if(c===e) reach=true; getNb(c).forEach(n=>{ if(!v.has(n)&&(n===e||set.has(n))){v.add(n);q.push(n)} }); } return reach; 
+    }
+    function getNb(i) { let r=Math.floor(i/ROW_SIZE),c=i%ROW_SIZE,n=[]; if(r>0)n.push(i-ROW_SIZE);if(r<ROW_SIZE-1)n.push(i+ROW_SIZE);if(c>0)n.push(i-1);if(c<ROW_SIZE-1)n.push(i+1); return n; }
+    function showMsg(ok, txt) { 
+        const m=document.getElementById('message'); 
+        if(ok) { m.innerHTML=`<span class="text-green-600">🎉 ${txt||'Chính xác!'}</span>`; playSound('win'); }
+        else { m.innerHTML=`<span class="text-red-500">🤔 ${txt||'Sai rồi, thử lại nhé!'}</span>`; playSound('err'); }
+    }
+    
+    // FIX AUDIO (Final)
+    const ac = new (window.AudioContext||window.webkitAudioContext)();
+    function playSound(t) {
+        if(ac.state==='suspended') ac.resume();
+        const o=ac.createOscillator(), g=ac.createGain(); o.connect(g); g.connect(ac.destination);
+        if(t==='win'){o.frequency.value=600;g.gain.value=0.1;o.start();o.stop(ac.currentTime+0.2);}
+        else if(t==='pop'){o.frequency.value=400;g.gain.value=0.05;o.start();o.stop(ac.currentTime+0.05);}
+        else {o.type='sawtooth';o.frequency.value=150;g.gain.value=0.1;o.start();o.stop(ac.currentTime+0.3);}
+    }
+
+    switchMode('OR');
+</script>
+</body>
+</html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cộng Bằng Cách Tách Số Hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #ecfeff; /* Xanh cyan nhạt */
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 0 #cffafe;
+            border: 4px solid #ccfbf1;
+        }
+
+        /* Ô trống để điền (Slot) */
+        .slot-box {
+            width: 120px; /* Rộng hơn để chứa biểu thức cộng */
+            height: 50px; /* Cao hơn */
+            border: 3px dashed #cbd5e1; /* Nét đứt khi trống */
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem; /* Nhỏ hơn để chứa biểu thức */
+            font-weight: 800;
+            color: #0891b2;
+            background-color: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 4px;
+        }
+
+        /* Khi ô đã có số */
+        .slot-filled {
+            border: 3px solid #22d3ee;
+            background-color: #e0f2fe;
+            color: #0e7490;
+            box-shadow: 0 4px 0 #67e8f9;
+            transform: translateY(-2px);
+            border-style: solid;
+        }
+
+        /* Bong bóng lựa chọn (Option Bubble) */
+        .option-bubble {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 16px; /* Nhỏ hơn để chứa biểu thức */
+            min-width: 90px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 50px; 
+            font-size: 1rem; 
+            font-weight: 800;
+            color: #475569;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #cbd5e1;
+            transition: all 0.1s;
+            margin: 6px;
+        }
+
+        .option-bubble:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #cbd5e1;
+        }
+        
+        /* Hiệu ứng khi chọn đúng/sai */
+        .slot-correct {
+            background-color: #dcfce7 !important;
+            border-color: #22c55e !important;
+            color: #15803d !important;
+            box-shadow: 0 4px 0 #86efac !important;
+        }
+        .slot-wrong {
+            background-color: #fee2e2 !important;
+            border-color: #ef4444 !important;
+            color: #b91c1c !important;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        /* Ẩn bong bóng đã chọn */
+        .bubble-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0);
+        }
+
+        .plus-sign {
+            font-size: 1.5rem; /* Nhỏ hơn */
+            font-weight: 900;
+            color: #0891b2;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-3">
+
+    <div class="game-card w-full max-w-2xl p-4 md:p-8 text-center">
+        
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-xl md:text-2xl font-extrabold text-cyan-700">Cộng Bằng Cách Tách Số Hàng</h1>
+            <select id="difficulty" onchange="game.init()" class="bg-white border-2 border-cyan-200 text-cyan-700 font-bold py-1 px-3 rounded-lg text-sm">
+                <option value="100">Hàng Trăm (3 chữ số)</option>
+                <option value="1000">Hàng Nghìn (4 chữ số)</option>
+            </select>
+        </div>
+
+        <div class="mb-8">
+            <p class="text-cyan-400 font-bold text-xs uppercase mb-1">Phép cộng cần giải</p>
+            <div id="target-number" class="text-4xl md:text-5xl font-black text-cyan-600 tracking-wider drop-shadow-sm">
+                000 + 000 = ???
+            </div>
+        </div>
+
+        <div class="bg-slate-50 rounded-2xl p-4 border-2 border-slate-100 mb-6">
+            <p class="text-sm font-bold text-slate-600 mb-2">Tách thành các phép cộng theo hàng:</p>
+            <div id="slots-container" class="flex flex-wrap justify-center items-center gap-1.5">
+                </div>
+            <p class="text-xs text-slate-400 font-bold mt-4">Bấm vào ô số để bỏ chọn</p>
+        </div>
+
+        <div class="mb-8">
+            <p class="text-slate-400 font-bold text-sm mb-2">Chọn các mảnh ghép đúng (Ví dụ: (300 + 400)):</p>
+            <div id="options-container" class="flex flex-wrap justify-center min-h-[100px]">
+                </div>
+        </div>
+
+        <div class="flex justify-center gap-3">
+            <button onclick="game.check()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_0_#15803d] active:shadow-none active:translate-y-[4px] transition-all text-xl">
+                Kiểm Tra
+            </button>
+            <button onclick="game.init()" class="bg-white border-2 border-slate-200 text-slate-500 hover:bg-slate-50 font-bold py-3 px-6 rounded-xl transition-all">
+                Tiếp Theo ➜
+            </button>
+        </div>
+        
+        <p id="msg" class="mt-4 h-6 text-lg font-bold text-cyan-600"></p>
+    </div>
+
+<script>
+    /* === PHIÊN BẢN MỚI: CỘNG BẰNG CÁCH TÁCH SỐ HÀNG === */
+    class AdditionByPlaceValueGame {
+        constructor() {
+            this.targetEl = document.getElementById('target-number'); 
+            this.slotsContainer = document.getElementById('slots-container');
+            this.optionsContainer = document.getElementById('options-container');
+            this.diffSelect = document.getElementById('difficulty');
+            this.msg = document.getElementById('msg');
+            
+            this.numberA = 0;
+            this.numberB = 0;
+            this.sum = 0;
+            
+            this.partsA = []; 
+            this.partsB = []; 
+            this.correctEquations = []; // ["300 + 400", "20 + 70", "5 + 8"]
+            this.userAnswers = []; // [null, null, null]
+
+            this.init();
+        }
+
+        init() {
+            this.msg.innerHTML = "";
+            const mode = parseInt(this.diffSelect.value); 
+            
+            // 1. Sinh hai số ngẫu nhiên
+            const min = mode === 100 ? 100 : 1000;
+            const max = mode === 100 ? 999 : 9999;
+            
+            this.numberA = Math.floor(Math.random() * (max - min + 1) + min);
+            this.numberB = Math.floor(Math.random() * (max - min + 1) + min);
+            this.sum = this.numberA + this.numberB;
+
+            this.targetEl.innerHTML = `${this.numberA} + ${this.numberB} = <span class='text-cyan-500'>${this.sum}</span>`;
+
+            // 2. Tính toán các thành phần (Place Values) và các Phương trình đúng
+            this.partsA = this.getPlaceValues(this.numberA);
+            this.partsB = this.getPlaceValues(this.numberB);
+            
+            // Đảm bảo số lượng phần tử bằng nhau (thêm số 0 vào đầu nếu cần, VD: 999 + 1000)
+            const maxLength = Math.max(this.partsA.length, this.partsB.length);
+            while (this.partsA.length < maxLength) this.partsA.unshift(0);
+            while (this.partsB.length < maxLength) this.partsB.unshift(0);
+
+            this.correctEquations = this.partsA.map((valA, i) => {
+                // Chỉ tạo phương trình nếu cả hai số hạng không phải là 0
+                if (valA !== 0 || this.partsB[i] !== 0) {
+                    return `${valA} + ${this.partsB[i]}`;
+                }
+                return null;
+            }).filter(eq => eq !== null && eq !== "0 + 0");
+
+            // Reset mảng câu trả lời người dùng
+            this.userAnswers = new Array(this.correctEquations.length).fill(null);
+
+            // 3. Render Slots (Ô trống)
+            this.renderSlots();
+
+            // 4. Sinh Options (Bong bóng)
+            this.generateOptions();
+        }
+        
+        // Hàm phụ trợ để tách số thành các hàng (Place Values)
+        getPlaceValues(num) {
+            const strNum = num.toString();
+            return strNum.split('').map((digit, i) => {
+                const power = strNum.length - 1 - i;
+                return parseInt(digit) * Math.pow(10, power);
+            });
+        }
+
+        renderSlots() {
+            this.slotsContainer.innerHTML = '';
+            this.userAnswers.forEach((val, index) => {
+                // Tạo ô slot
+                const slot = document.createElement('div');
+                
+                if (val === null) {
+                    slot.className = 'slot-box';
+                    slot.textContent = '(?)';
+                } else {
+                    slot.className = 'slot-box slot-filled';
+                    slot.textContent = `(${val})`; // Hiển thị trong dấu ngoặc
+                    // Bấm vào ô đã điền thì trả lại kho
+                    slot.onclick = () => this.removeAnswer(index, val);
+                }
+
+                this.slotsContainer.appendChild(slot);
+
+                // Thêm dấu cộng giữa các phương trình con
+                if (index < this.userAnswers.length - 1) {
+                    const plus = document.createElement('span');
+                    plus.className = 'plus-sign';
+                    plus.textContent = '+';
+                    this.slotsContainer.appendChild(plus);
+                }
+            });
+        }
+
+        generateOptions() {
+            this.optionsContainer.innerHTML = '';
+            this.optionPool = [];
+
+            // A. Thêm các đáp án ĐÚNG vào pool
+            this.correctEquations.forEach(eq => this.optionPool.push({ val: eq, id: Math.random() }));
+
+            // B. Thêm các đáp án SAI (Distractors)
+            // Chiến thuật: Ghép lộn xộn các phần tử
+            const allParts = [...this.partsA, ...this.partsB].filter(p => p !== 0);
+            
+            // Tạo ra các phép cộng SAI bằng cách chọn ngẫu nhiên 2 phần tử khác hàng
+            for (let i = 0; i < 4; i++) { // Thêm 4 đáp án nhiễu
+                let randA = allParts[Math.floor(Math.random() * allParts.length)];
+                let randB = allParts[Math.floor(Math.random() * allParts.length)];
+                
+                // Đảm bảo không tạo ra phép cộng đã đúng và không phải 2 số giống hệt nhau
+                const wrongEq = `${randA} + ${randB}`;
+                const wrongEqReversed = `${randB} + ${randA}`;
+                
+                if (!this.correctEquations.includes(wrongEq) && 
+                    !this.correctEquations.includes(wrongEqReversed)) 
+                {
+                    this.optionPool.push({ val: wrongEq, id: Math.random() });
+                }
+            }
+            
+            // C. Lọc trùng lặp và Xáo trộn pool
+            const uniqueOptions = Array.from(new Set(this.optionPool.map(o => o.val)))
+                                    .map(val => ({ val: val, id: Math.random() }));
+                                    
+            uniqueOptions.sort(() => Math.random() - 0.5);
+
+            // D. Render ra màn hình
+            uniqueOptions.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-bubble hover:bg-cyan-50 hover:border-cyan-200';
+                btn.textContent = `(${opt.val})`;
+                btn.id = `opt-${opt.id}`; 
+                
+                btn.onclick = () => this.selectOption(opt);
+                this.optionsContainer.appendChild(btn);
+            });
+        }
+
+        selectOption(opt) {
+            const emptyIndex = this.userAnswers.findIndex(x => x === null);
+            
+            if (emptyIndex !== -1) {
+                this.userAnswers[emptyIndex] = opt.val;
+                
+                const btn = document.getElementById(`opt-${opt.id}`);
+                if(btn) btn.classList.add('bubble-hidden');
+
+                this.renderSlots();
+            } else {
+                 this.msg.innerHTML = "<span class='text-orange-500'>Đã điền hết các ô trống! Bấm Kiểm Tra.</span>";
+            }
+        }
+
+        removeAnswer(index, val) {
+            this.userAnswers[index] = null;
+            
+            // Cần tìm nút bong bóng hiển thị `(val)`
+            const valWithParens = `(${val})`;
+            const hiddenBtns = Array.from(this.optionsContainer.querySelectorAll('.bubble-hidden'));
+            const matchBtn = hiddenBtns.find(b => b.textContent === valWithParens);
+            
+            if(matchBtn) {
+                matchBtn.classList.remove('bubble-hidden');
+            }
+
+            this.renderSlots();
+            this.msg.textContent = "";
+        }
+
+        check() {
+            // Kiểm tra xem đã điền hết chưa
+            if (this.userAnswers.includes(null)) {
+                this.msg.innerHTML = "<span class='text-orange-500'>Bé hãy điền đầy đủ các ô trống nhé!</span>";
+                return;
+            }
+
+            let isCorrect = true;
+            const slots = this.slotsContainer.querySelectorAll('.slot-box');
+
+            // Tạo bản sao của đáp án đúng để kiểm tra hoán vị (ví dụ: "300+400" vẫn đúng khi điền vào slot "5+8")
+            let checkCorrects = [...this.correctEquations];
+            let correctCount = 0;
+
+            this.userAnswers.forEach((userEq, i) => {
+                // Xóa trạng thái cũ
+                slots[i].classList.remove('slot-correct', 'slot-wrong');
+
+                const eqIndex = checkCorrects.findIndex(correctEq => {
+                    // Tách các thành phần số
+                    const [a1, b1] = userEq.split(' + ').map(Number);
+                    const [a2, b2] = correctEq.split(' + ').map(Number);
+                    
+                    // Kiểm tra xem biểu thức người dùng có phải là đáp án đúng (có thể hoán vị) không
+                    return (a1 === a2 && b1 === b2) || (a1 === b2 && b1 === a2);
+                });
+
+                if (eqIndex !== -1) {
+                    // Đúng, đánh dấu slot, xóa khỏi mảng kiểm tra
+                    slots[i].classList.add('slot-correct');
+                    checkCorrects.splice(eqIndex, 1);
+                    correctCount++;
+                } else {
+                    // Sai
+                    slots[i].classList.add('slot-wrong');
+                    isCorrect = false;
+                }
+            });
+            
+            // Nếu số lượng đáp án đúng (tính cả hoán vị) không bằng tổng số phương trình con
+            if (correctCount !== this.correctEquations.length) {
+                isCorrect = false;
+            }
+
+
+            if (isCorrect) {
+                this.msg.innerHTML = "<span class='text-green-600'>Chính xác! Bé quá thông minh! 🌟</span>";
+            } else {
+                this.msg.innerHTML = "<span class='text-red-500'>Có chỗ chưa đúng, hãy kiểm tra lại các phép cộng con!</span>";
+                setTimeout(() => {
+                    slots.forEach(s => s.classList.remove('slot-wrong'));
+                }, 1500);
+            }
+        }
+    }
+
+    // Khởi tạo trò chơi mới
+    const game = new AdditionByPlaceValueGame();
+</script>
+</body>
+</html>

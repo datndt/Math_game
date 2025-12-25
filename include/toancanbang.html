@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vua Cân Bằng - Thử Thách Trí Tuệ</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            user-select: none;
+            min-height: 100vh;
+        }
+
+        h1 { color: #4f46e5; margin: 10px 0; text-transform: uppercase; font-size: 24px; text-align: center; }
+
+        /* --- THANH ĐIỀU HƯỚNG CẤP ĐỘ --- */
+        .level-bar {
+            display: flex;
+            gap: 10px;
+            background: white;
+            padding: 8px;
+            border-radius: 50px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+
+        .lvl-btn {
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 800;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+        
+        .lvl-btn.active { opacity: 1; transform: scale(1.05); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-easy { background: #86efac; color: #14532d; }
+        .btn-med { background: #fde047; color: #713f12; }
+        .btn-hard { background: #fca5a5; color: #7f1d1d; }
+
+        /* --- GAME BOARD --- */
+        .game-board {
+            background: white;
+            width: 100%;
+            max-width: 650px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            border: 4px solid #e5e7eb;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            color: #6b7280;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .dots { display: flex; gap: 5px; }
+        .dot { width: 10px; height: 10px; background: #e5e7eb; border-radius: 50%; }
+        .dot.active { background: #4f46e5; }
+
+        /* --- KHU VỰC GỢI Ý (CLUE AREA) --- */
+        .clue-area {
+            background: #eff6ff;
+            border: 2px dashed #bfdbfe;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .rule-card {
+            background: white;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 5px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 0 #94a3b8;
+        }
+        .rule-emoji { font-size: 32px; line-height: 1; }
+        .rule-eq { font-size: 24px; color: #94a3b8; font-weight: 900; }
+        .arrow { font-size: 24px; color: #3b82f6; font-weight: bold; }
+
+        /* --- CÂN CHÍNH --- */
+        .scale-wrapper {
+            height: 220px;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        .base {
+            width: 0; height: 0;
+            border-left: 40px solid transparent;
+            border-right: 40px solid transparent;
+            border-bottom: 120px solid #4b5563;
+            position: absolute;
+            bottom: 0; left: 50%; transform: translateX(-50%);
+            z-index: 1;
+        }
+
+        .beam {
+            width: 90%;
+            height: 10px;
+            background: #1f2937;
+            position: absolute;
+            top: 60px; left: 5%;
+            border-radius: 5px;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-origin: center;
+            z-index: 2;
+        }
+
+        .pan {
+            position: absolute;
+            top: 5px;
+            width: 90px;
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .pan-left { left: 0; }
+        .pan-right { right: 0; }
+
+        .string { width: 2px; height: 50px; background: #374151; }
+        .dish {
+            width: 100px; height: 15px;
+            background: #374151;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* ITEMS ON SCALE */
+        .big-item {
+            font-size: 55px;
+            position: absolute;
+            bottom: 10px;
+            filter: drop-shadow(0 4px 2px rgba(0,0,0,0.2));
+        }
+
+        .small-items-group {
+            display: flex;
+            flex-wrap: wrap-reverse;
+            justify-content: center;
+            align-content: flex-end;
+            width: 120px;
+            position: absolute;
+            bottom: 10px;
+            height: 100px; /* Limit height */
+        }
+        
+        .small-item {
+            font-size: 35px;
+            margin: -4px;
+            animation: popIn 0.3s;
+            transition: all 0.2s;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0); } to { transform: scale(1); }
+        }
+
+        /* --- CONTROLS --- */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .add-area {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn-circle {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            border: none;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+            transition: active 0.1s;
+        }
+        .btn-circle:active { transform: translateY(4px); box-shadow: none; }
+        
+        .btn-minus { background: #fecaca; color: #b91c1c; }
+        .btn-plus { background: #bae6fd; color: #0369a1; width: 70px; height: 70px; font-size: 35px; }
+
+        .count-bubble {
+            background: #4f46e5; color: white;
+            padding: 5px 15px; border-radius: 20px;
+            font-weight: bold; font-size: 20px;
+        }
+
+        .btn-check {
+            width: 100%;
+            background: #22c55e; color: white;
+            padding: 15px; font-size: 20px; font-weight: 800;
+            border: none; border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #15803d;
+            margin-top: 10px;
+        }
+        .btn-check:active { transform: translateY(5px); box-shadow: none; }
+
+        #question-label {
+            text-align: center;
+            font-size: 18px;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+
+        #feedback-msg {
+            height: 30px;
+            text-align: center;
+            font-weight: bold;
+            margin-top: 10px;
+            font-size: 18px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>⚖️ Vua Cân Bằng</h1>
+
+    <div class="level-bar">
+        <button onclick="setLevel('easy')" id="btn-easy" class="lvl-btn btn-easy active">Dễ (1 bước)</button>
+        <button onclick="setLevel('medium')" id="btn-medium" class="lvl-btn btn-med">Vừa (2 bước)</button>
+        <button onclick="setLevel('hard')" id="btn-hard" class="lvl-btn btn-hard">Khó (Tính toán)</button>
+    </div>
+
+    <div class="game-board">
+        <div class="progress-container">
+            <span>Cấp độ: <span id="level-name">Dễ</span></span>
+            <div class="dots" id="progress-dots">
+                </div>
+        </div>
+
+        <div class="clue-area" id="clue-area">
+            </div>
+
+        <div id="question-label">
+            Cần bao nhiêu <span id="q-unit-icon">?</span> để cân bằng?
+        </div>
+
+        <div class="scale-wrapper">
+            <div class="base"></div>
+            <div id="beam" class="beam">
+                <div class="pan pan-left">
+                    <div class="string"></div>
+                    <div class="dish">
+                        <div id="target-item" class="big-item">🦁</div>
+                    </div>
+                </div>
+                <div class="pan pan-right">
+                    <div class="string"></div>
+                    <div class="dish" id="user-items">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="add-area">
+                <button class="btn-circle btn-minus" onclick="updateCount(-1)">➖</button>
+                <div class="count-bubble" id="count-display">0</div>
+                <button class="btn-circle btn-plus" onclick="updateCount(1)">➕</button>
+            </div>
+            <button class="btn-check" onclick="checkAnswer()">KIỂM TRA</button>
+        </div>
+
+        <div id="feedback-msg"></div>
+    </div>
+
+<script>
+    // --- DATABASE: 15 CÂU HỎI (5 câu/level) ---
+    const QUESTIONS = {
+        easy: [
+            { id: 1, rules: [{b:'🐶', s:'🦴🦴', v:2}], target:'🐶', unit:'🦴', ans:2 },
+            { id: 2, rules: [{b:'🐝', s:'🌸🌸🌸', v:3}], target:'🐝', unit:'🌸', ans:3 },
+            { id: 3, rules: [{b:'🏴‍☠️', s:'💰💰💰💰', v:4}], target:'🏴‍☠️', unit:'💰', ans:4 },
+            { id: 4, rules: [{b:'🐘', s:'🐁🐁🐁🐁🐁', v:5}], target:'🐘', unit:'🐁', ans:5 },
+            { id: 5, rules: [{b:'🚗', s:'🚲🚲', v:2}], target:'🚗', unit:'🚲', ans:2 }
+        ],
+        medium: [
+            // Bắc cầu: A = nB, B = mC => A = n*m C
+            { id: 1, rules: [{b:'🦁', s:'🦊🦊', v:2}, {b:'🦊', s:'🐔🐔', v:2}], target:'🦁', unit:'🐔', ans:4 }, // 2*2=4
+            { id: 2, rules: [{b:'👽', s:'🤖🤖', v:2}, {b:'🤖', s:'🔋🔋🔋', v:3}], target:'👽', unit:'🔋', ans:6 }, // 2*3=6
+            { id: 3, rules: [{b:'🏰', s:'🏠🏠', v:2}, {b:'🏠', s:'🧱🧱', v:2}], target:'🏰', unit:'🧱', ans:4 }, // 2*2=4
+            { id: 4, rules: [{b:'🦈', s:'🐟🐟🐟', v:3}, {b:'🐟', s:'🦐🦐', v:2}], target:'🦈', unit:'🦐', ans:6 }, // 3*2=6
+            { id: 5, rules: [{b:'🦉', s:'🐦🐦', v:2}, {b:'🐦', s:'🐛🐛🐛', v:3}], target:'🦉', unit:'🐛', ans:6 } // 2*3=6
+        ],
+        hard: [
+            // Logic khó hơn: Bắc cầu 3 bước hoặc Số lượng lớn
+            { id: 1, rules: [{b:'🎃', s:'🌽🌽', v:2}, {b:'🌽', s:'🌶️🌶️🌶️🌶️', v:4}], target:'🎃', unit:'🌶️', ans:8 }, // 2*4=8
+            { id: 2, rules: [{b:'🚀', s:'✈️✈️', v:2}, {b:'✈️', s:'🚁🚁🚁', v:3}], target:'🚀', unit:'🚁', ans:6 }, // 2*3=6
+            { id: 3, rules: [{b:'🦖', s:'🐊🐊🐊', v:3}, {b:'🐊', s:'🥚🥚🥚', v:3}], target:'🦖', unit:'🥚', ans:9 }, // 3*3=9
+            { id: 4, rules: [{b:'🌍', s:'🌑🌑', v:2}, {b:'🌑', s:'⭐', v:1}, {b:'⭐', s:'☄️☄️☄️☄️', v:4}], target:'🌍', unit:'☄️', ans:8 }, // 2*1*4 = 8 (Mẹo: 1 sao = 4 thiên thạch)
+            { id: 5, rules: [{b:'🧞‍♂️', s:'🏺', v:1}, {b:'🏺', s:'💎💎💎💎💎💎💎', v:7}], target:'🧞‍♂️', unit:'💎', ans:7 } // Trực quan nhưng số to
+        ]
+    };
+
+    // --- STATE ---
+    let currentLevel = 'easy';
+    let qIndex = 0; // Câu hỏi hiện tại (0-4)
+    let userCount = 0;
+    let currentQ = null;
+
+    // --- INIT ---
+    function setLevel(lvl) {
+        currentLevel = lvl;
+        qIndex = 0;
+        
+        // Update Tabs
+        document.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+        const btnId = lvl === 'easy' ? 'btn-easy' : (lvl === 'medium' ? 'btn-medium' : 'btn-hard');
+        document.getElementById(btnId).classList.add('active');
+        
+        // Update Title
+        const names = {easy: "Dễ (Trực quan)", medium: "Vừa (Suy luận)", hard: "Khó (Thử thách)"};
+        document.getElementById('level-name').textContent = names[lvl];
+
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        // Lấy dữ liệu
+        const questionsList = QUESTIONS[currentLevel];
+        if (qIndex >= questionsList.length) {
+            // Hoàn thành cấp độ
+            finishLevel();
+            return;
+        }
+        
+        currentQ = questionsList[qIndex];
+        userCount = 0;
+
+        // 1. Render Progress Dots
+        const dotsContainer = document.getElementById('progress-dots');
+        dotsContainer.innerHTML = '';
+        for(let i=0; i<questionsList.length; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot ' + (i <= qIndex ? 'active' : '');
+            dotsContainer.appendChild(dot);
+        }
+
+        // 2. Render Clues (Quy tắc)
+        const clueArea = document.getElementById('clue-area');
+        clueArea.innerHTML = '';
+        currentQ.rules.forEach((rule, idx) => {
+            const card = document.createElement('div');
+            card.className = 'rule-card';
+            
+            // Logic hiển thị icon bé (lặp lại string)
+            // Lưu ý: rule.s trong data đã là string lặp sẵn (ví dụ '🦴🦴') nên chỉ cần hiển thị
+            card.innerHTML = `
+                <div class="rule-emoji">${rule.b}</div>
+                <div class="rule-eq">=</div>
+                <div class="rule-emoji" style="font-size:28px">${rule.s}</div>
+            `;
+            clueArea.appendChild(card);
+
+            // Mũi tên suy ra
+            if (idx < currentQ.rules.length - 1) {
+                const arrow = document.createElement('div');
+                arrow.className = 'arrow';
+                arrow.innerHTML = '➜';
+                clueArea.appendChild(arrow);
+            }
+        });
+
+        // 3. Render Scale Target
+        document.getElementById('target-item').textContent = currentQ.target;
+        document.getElementById('q-unit-icon').textContent = currentQ.unit;
+
+        // 4. Reset User State
+        document.getElementById('feedback-msg').textContent = '';
+        renderUserItems();
+        updateTilt();
+    }
+
+    function updateCount(delta) {
+        let newCount = userCount + delta;
+        if (newCount < 0) newCount = 0;
+        if (newCount > 15) newCount = 15; // Max limit
+        userCount = newCount;
+        renderUserItems();
+        updateTilt();
+    }
+
+    function renderUserItems() {
+        const container = document.getElementById('user-items');
+        container.innerHTML = '';
+        document.getElementById('count-display').textContent = userCount;
+
+        for(let i=0; i<userCount; i++) {
+            const el = document.createElement('div');
+            el.className = 'small-item';
+            el.textContent = currentQ.unit;
+            container.appendChild(el);
+        }
+    }
+
+    function updateTilt() {
+        const diff = userCount - currentQ.ans;
+        // diff < 0: nhẹ (nghiêng trái - góc âm)
+        // diff > 0: nặng (nghiêng phải - góc dương)
+        // diff = 0: cân bằng
+        
+        // Góc nghiêng: nhân hệ số để rõ ràng
+        let angle = diff * 5;
+        if (angle > 20) angle = 20;
+        if (angle < -20) angle = -20;
+        
+        document.getElementById('beam').style.transform = `rotate(${angle}deg)`;
+    }
+
+    function checkAnswer() {
+        const msg = document.getElementById('feedback-msg');
+        
+        if (userCount === currentQ.ans) {
+            msg.innerHTML = "<span style='color:green'>🎉 Chính xác! Giỏi quá!</span>";
+            document.getElementById('beam').style.transform = `rotate(0deg)`; // Fix thẳng
+            
+            // Auto next
+            setTimeout(() => {
+                qIndex++;
+                loadQuestion();
+            }, 1200);
+
+        } else if (userCount < currentQ.ans) {
+            msg.innerHTML = "<span style='color:red'>Còn nhẹ quá, thêm nữa đi!</span>";
+        } else {
+            msg.innerHTML = "<span style='color:red'>Nặng quá rồi, bớt ra nhé!</span>";
+        }
+    }
+
+    function finishLevel() {
+        const board = document.querySelector('.game-board');
+        board.innerHTML = `
+            <div style="text-align:center; padding:40px;">
+                <div style="font-size:60px;">🏆</div>
+                <h2 style="color:#4f46e5; margin:10px 0;">Hoàn thành xuất sắc!</h2>
+                <p>Bé đã giải hết 5 câu đố cấp độ ${document.getElementById('level-name').textContent}.</p>
+                <button onclick="location.reload()" style="background:#4f46e5; color:white; border:none; padding:15px 30px; border-radius:10px; font-size:18px; font-weight:bold; cursor:pointer; margin-top:20px;">Chơi lại từ đầu</button>
+            </div>
+        `;
+    }
+
+    // Start
+    setLevel('easy');
+
+</script>
+</body>
+</html>

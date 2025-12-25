@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đếm Số Chữ Số</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f5f3ff; /* Tím nhạt */
+            user-select: none;
+        }
+
+        .number-card {
+            transition: all 0.2s;
+            cursor: pointer;
+            box-shadow: 0 4px 0px 0px #e5e7eb; /* Hiệu ứng nút nổi 3D nhẹ */
+        }
+        
+        .number-card:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* Khi chưa chọn */
+        .card-default {
+            background-color: white;
+            border: 2px solid #ddd6fe;
+            color: #5b21b6;
+        }
+        .card-default:hover {
+            border-color: #8b5cf6;
+            background-color: #fdfbff;
+        }
+
+        /* Chọn ĐÚNG */
+        .card-correct {
+            background-color: #8b5cf6 !important; /* Tím đậm */
+            color: white !important;
+            border-color: #6d28d9 !important;
+            box-shadow: 0 4px 0px 0px #5b21b6;
+            transform: scale(1.05);
+            pointer-events: none; /* Không cho bấm lại */
+        }
+
+        /* Chọn SAI */
+        .card-wrong {
+            background-color: #ef4444 !important;
+            color: white !important;
+            border-color: #b91c1c !important;
+            animation: shake 0.4s;
+        }
+
+        /* Hiệu ứng rung khi sai */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .level-btn-active {
+            background-color: #7c3aed;
+            color: white;
+            border-color: #5b21b6;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="bg-white w-full max-w-4xl rounded-3xl shadow-xl border-4 border-violet-200 overflow-hidden">
+        
+        <div class="bg-violet-50 p-6 text-center border-b border-violet-100">
+            <h1 class="text-3xl font-extrabold text-violet-800 uppercase mb-4">Thợ Săn Chữ Số</h1>
+            
+            <div class="flex flex-wrap justify-center gap-3">
+                <button onclick="setLevel('easy')" id="btn-easy" class="px-5 py-2 rounded-full font-bold border-2 border-violet-300 text-violet-700 hover:bg-violet-100 transition-colors">
+                    1 & 2 Chữ số (Dễ)
+                </button>
+                <button onclick="setLevel('medium')" id="btn-medium" class="px-5 py-2 rounded-full font-bold border-2 border-violet-300 text-violet-700 hover:bg-violet-100 transition-colors">
+                    2 & 3 Chữ số (Vừa)
+                </button>
+                <button onclick="setLevel('hard')" id="btn-hard" class="px-5 py-2 rounded-full font-bold border-2 border-violet-300 text-violet-700 hover:bg-violet-100 transition-colors">
+                    3 & 4 Chữ số (Khó)
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6 md:p-10 text-center">
+            
+            <div class="mb-8">
+                <p class="text-gray-500 font-bold text-sm uppercase tracking-widest mb-2">Nhiệm vụ của bé</p>
+                <h2 class="text-2xl md:text-3xl font-extrabold text-gray-800">
+                    Tìm tất cả các số có <span id="target-digit-display" class="text-violet-600 text-4xl px-2 border-b-4 border-violet-300">?</span> chữ số
+                </h2>
+                
+                <div class="mt-4 inline-flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-lg">
+                    <span class="text-gray-500 font-bold">Đã tìm được:</span>
+                    <span id="progress-text" class="text-violet-700 font-black text-xl">0 / 0</span>
+                </div>
+            </div>
+
+            <div id="grid" class="flex flex-wrap justify-center gap-4 mb-8">
+                </div>
+
+            <div id="win-message" class="hidden">
+                <div class="text-green-600 text-2xl font-bold animate-bounce mb-4">
+                    🎉 Xuất sắc! Bé đã tìm đủ hết rồi!
+                </div>
+                <button onclick="initGame()" class="bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-transform active:scale-95">
+                    Chơi màn tiếp theo ➜
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+    // --- CẤU HÌNH ---
+    const LEVELS = {
+        easy: {
+            totalNumbers: 8,       // Tổng số ô trên màn hình
+            digitOptions: [1, 2],  // Chỉ xuất hiện số có 1 hoặc 2 chữ số
+            targetOptions: [1, 2]  // Câu hỏi sẽ yêu cầu tìm số có 1 hoặc 2 chữ số
+        },
+        medium: {
+            totalNumbers: 12,
+            digitOptions: [2, 3],
+            targetOptions: [2, 3]
+        },
+        hard: {
+            totalNumbers: 16,
+            digitOptions: [2, 3, 4],
+            targetOptions: [3, 4] // Thường hỏi tìm 3 hoặc 4 chữ số cho khó
+        }
+    };
+
+    let currentLevel = 'easy';
+    let targetDigitCount = 0; // Số chữ số cần tìm (ví dụ: 3)
+    let totalCorrectTargets = 0; // Tổng số đáp án đúng có trên màn hình
+    let foundCount = 0; // Số đáp án bé đã chọn đúng
+    let isGameActive = true;
+
+    // Helper: Tạo số ngẫu nhiên có N chữ số
+    function generateNumberWithDigits(n) {
+        if (n === 1) return Math.floor(Math.random() * 9) + 1; // 1-9
+        const min = Math.pow(10, n - 1);
+        const max = Math.pow(10, n) - 1;
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Helper: Shuffle mảng
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function setLevel(level) {
+        currentLevel = level;
+        
+        // Update UI buttons
+        ['easy', 'medium', 'hard'].forEach(l => {
+            const btn = document.getElementById(`btn-${l}`);
+            if(l === level) btn.classList.add('level-btn-active', 'bg-violet-600', 'text-white');
+            else btn.classList.remove('level-btn-active', 'bg-violet-600', 'text-white');
+        });
+
+        initGame();
+    }
+
+    function initGame() {
+        const config = LEVELS[currentLevel];
+        isGameActive = true;
+        foundCount = 0;
+        document.getElementById('win-message').classList.add('hidden');
+        document.getElementById('grid').innerHTML = ''; // Clear cũ
+
+        // 1. Xác định câu hỏi (Tìm số có bao nhiêu chữ số?)
+        targetDigitCount = config.targetOptions[Math.floor(Math.random() * config.targetOptions.length)];
+        document.getElementById('target-digit-display').textContent = targetDigitCount;
+
+        // 2. Sinh danh sách số đảm bảo có đủ đáp án đúng và sai
+        let numbers = [];
+        
+        // Đảm bảo ít nhất 30-50% là đáp án ĐÚNG
+        const minCorrect = Math.ceil(config.totalNumbers * 0.4); 
+        totalCorrectTargets = 0;
+
+        for (let i = 0; i < config.totalNumbers; i++) {
+            let digits;
+            
+            if (i < minCorrect) {
+                // Bắt buộc sinh số đúng yêu cầu
+                digits = targetDigitCount;
+            } else {
+                // Sinh số ngẫu nhiên khác (có thể trùng hoặc không, nhưng ưu tiên khác)
+                const otherOptions = config.digitOptions.filter(d => d !== targetDigitCount);
+                if(otherOptions.length > 0) {
+                     digits = otherOptions[Math.floor(Math.random() * otherOptions.length)];
+                } else {
+                    digits = targetDigitCount; // Fallback
+                }
+            }
+            
+            if (digits === targetDigitCount) totalCorrectTargets++;
+            numbers.push(generateNumberWithDigits(digits));
+        }
+
+        // Xáo trộn vị trí
+        shuffleArray(numbers);
+
+        // Update progress ban đầu
+        updateProgress();
+
+        // Render ra màn hình
+        const grid = document.getElementById('grid');
+        numbers.forEach(num => {
+            const btn = document.createElement('div');
+            // Style tùy chỉnh theo độ dài số để đẹp
+            const widthClass = num > 999 ? 'w-24' : 'w-20';
+            
+            btn.className = `number-card card-default h-20 ${widthClass} rounded-2xl flex items-center justify-center text-2xl md:text-3xl font-black select-none`;
+            btn.textContent = num;
+            
+            btn.onclick = (e) => checkAnswer(btn, num);
+            grid.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(btn, number) {
+        if (!isGameActive) return;
+        if (btn.classList.contains('card-correct')) return; // Đã chọn rồi thì thôi
+
+        const digits = String(number).length;
+
+        if (digits === targetDigitCount) {
+            // ĐÚNG
+            btn.classList.remove('card-default');
+            btn.classList.add('card-correct');
+            foundCount++;
+            updateProgress();
+
+            if (foundCount === totalCorrectTargets) {
+                gameWin();
+            }
+        } else {
+            // SAI
+            btn.classList.add('card-wrong');
+            setTimeout(() => {
+                btn.classList.remove('card-wrong');
+            }, 500);
+        }
+    }
+
+    function updateProgress() {
+        document.getElementById('progress-text').textContent = `${foundCount} / ${totalCorrectTargets}`;
+    }
+
+    function gameWin() {
+        isGameActive = false;
+        document.getElementById('win-message').classList.remove('hidden');
+    }
+
+    // Start
+    setLevel('easy');
+
+</script>
+</body>
+</html>

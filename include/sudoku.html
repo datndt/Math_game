@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bé Chơi Sudoku</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0f9ff;
+            user-select: none; /* Ngăn bôi đen văn bản khi bấm nhanh */
+        }
+
+        /* Hiệu ứng rung khi sai */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .shake { animation: shake 0.3s; }
+
+        /* Cell Styles */
+        .sudoku-cell {
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            background-color: white;
+            color: #0369a1;
+        }
+
+        /* Đường kẻ đậm chia vùng 2x2 */
+        .border-r-thick { border-right: 4px solid #bae6fd; }
+        .border-b-thick { border-bottom: 4px solid #bae6fd; }
+        
+        /* Trạng thái Cell */
+        .cell-fixed {
+            background-color: #f0f9ff;
+            color: #334155; /* Màu xám đậm cho số đề bài */
+            cursor: default;
+        }
+        
+        .cell-selected {
+            background-color: #bae6fd !important;
+            box-shadow: inset 0 0 0 2px #0ea5e9;
+        }
+
+        .cell-error {
+            color: #ef4444 !important; /* Màu đỏ khi sai luật */
+            background-color: #fee2e2 !important;
+        }
+
+        .cell-correct-anim {
+            animation: pop 0.3s;
+        }
+
+        @keyframes pop {
+            50% { transform: scale(1.2); }
+        }
+
+        /* Input Button Styles */
+        .input-btn {
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 12px;
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: white;
+            border: 2px solid #e0f2fe;
+            box-shadow: 0 4px 0 #bae6fd;
+            transition: all 0.1s;
+            color: #0369a1;
+        }
+        .input-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 0 0 #bae6fd;
+        }
+
+        /* SVG Shape Styles */
+        .shape-icon { width: 60%; height: 60%; stroke-width: 3; }
+        .shape-square rect { fill: none; stroke: currentColor; }
+        .shape-circle circle { fill: none; stroke: currentColor; }
+        .shape-triangle path { fill: none; stroke: currentColor; }
+        .shape-cross path { fill: none; stroke: currentColor; stroke-linecap: round; }
+
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="container max-w-md w-full bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border-4 border-white p-6 text-center">
+        
+        <h1 class="text-3xl font-extrabold text-sky-700 mb-1">Sudoku Vui Nhộn</h1>
+        <p class="text-sky-500 font-bold text-sm mb-6">Điền vào chỗ trống sao cho không trùng nhau nhé!</p>
+
+        <div class="flex justify-center gap-2 mb-6 bg-sky-100 p-1 rounded-xl">
+            <button onclick="setMode('number')" id="btn-mode-num" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all bg-white text-sky-700 shadow-sm">
+                1 2 3 4
+            </button>
+            <button onclick="setMode('shape')" id="btn-mode-shape" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all text-sky-400 hover:text-sky-600">
+                Hình Khối
+            </button>
+        </div>
+
+        <div class="relative bg-sky-200 p-1 rounded-xl shadow-inner mb-6 mx-auto w-full max-w-[320px]">
+            <div id="grid-container" class="grid grid-cols-4 gap-0.5 bg-sky-200 border-2 border-sky-200 rounded-lg overflow-hidden">
+                </div>
+        </div>
+
+        <div class="mb-6">
+            <p class="text-xs text-gray-400 font-bold mb-2 uppercase tracking-wider">Chọn ô rồi bấm nút dưới</p>
+            <div id="input-container" class="grid grid-cols-4 gap-3 max-w-[320px] mx-auto">
+                </div>
+        </div>
+
+        <div class="flex gap-3">
+            <button onclick="newGame()" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-sky-200 transition-colors">
+                Ván Mới
+            </button>
+            <button onclick="checkWin()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-200 transition-colors">
+                Kiểm Tra
+            </button>
+        </div>
+
+        <div id="message-area" class="mt-4 h-6 text-lg font-bold text-orange-500"></div>
+    </div>
+
+<script>
+    // --- CẤU HÌNH ---
+    // Mapping giá trị nội bộ (1-4) sang hiển thị
+    const SHAPES = {
+        1: '<svg class="shape-icon shape-square" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" /></svg>', // Vuông
+        2: '<svg class="shape-icon shape-triangle" viewBox="0 0 24 24"><path d="M12 4L20 20H4L12 4Z" /></svg>', // Tam giác
+        3: '<svg class="shape-icon shape-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /></svg>', // Tròn
+        4: '<svg class="shape-icon shape-cross" viewBox="0 0 24 24"><path d="M6 6L18 18M6 18L18 6" /></svg>' // Dấu X
+    };
+
+    let currentMode = 'number'; // 'number' hoặc 'shape'
+    let solutionGrid = [];
+    let puzzleGrid = []; // 0 là ô trống
+    let userGrid = [];
+    let selectedCellIndex = -1;
+
+    // --- LOGIC SUDOKU (4x4) ---
+    
+    // Tạo bảng 4x4 hợp lệ ngẫu nhiên
+    function generateSolution() {
+        // Mẫu cơ bản hợp lệ
+        let grid = [
+            1, 2, 3, 4,
+            3, 4, 1, 2,
+            2, 1, 4, 3,
+            4, 3, 2, 1
+        ];
+
+        // Xáo trộn để tạo ngẫu nhiên
+        // 1. Đổi chỗ số (Map 1->?, 2->?...)
+        const map = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
+        grid = grid.map(val => map[val - 1]);
+
+        // 2. Đổi chỗ hàng (Row 0 <-> Row 1, Row 2 <-> Row 3)
+        if(Math.random() > 0.5) swapRows(grid, 0, 1);
+        if(Math.random() > 0.5) swapRows(grid, 2, 3);
+        
+        // 3. Đổi chỗ cột (Col 0 <-> Col 1, Col 2 <-> Col 3)
+        if(Math.random() > 0.5) swapCols(grid, 0, 1);
+        if(Math.random() > 0.5) swapCols(grid, 2, 3);
+
+        return grid;
+    }
+
+    function swapRows(grid, r1, r2) {
+        for(let c=0; c<4; c++) {
+            let tmp = grid[r1*4 + c];
+            grid[r1*4 + c] = grid[r2*4 + c];
+            grid[r2*4 + c] = tmp;
+        }
+    }
+
+    function swapCols(grid, c1, c2) {
+        for(let r=0; r<4; r++) {
+            let tmp = grid[r*4 + c1];
+            grid[r*4 + c1] = grid[r*4 + c2];
+            grid[r*4 + c2] = tmp;
+        }
+    }
+
+    // Tạo đề bài bằng cách đục lỗ
+    function createPuzzle(solution) {
+        let puzzle = [...solution];
+        let holes = 8; // Số ô trống (8/16 là mức trung bình dễ)
+        
+        while(holes > 0) {
+            let idx = Math.floor(Math.random() * 16);
+            if(puzzle[idx] !== 0) {
+                puzzle[idx] = 0;
+                holes--;
+            }
+        }
+        return puzzle;
+    }
+
+    // --- GIAO DIỆN ---
+
+    function renderBoard() {
+        const container = document.getElementById('grid-container');
+        container.innerHTML = '';
+
+        for (let i = 0; i < 16; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'sudoku-cell';
+            
+            // Thêm đường kẻ đậm chia khối 2x2
+            // Cột 1 (index % 4 == 1) có border phải đậm
+            if (i % 4 === 1) cell.classList.add('border-r-thick');
+            // Hàng 1 (index 4-7) có border dưới đậm
+            if (Math.floor(i / 4) === 1) cell.classList.add('border-b-thick');
+
+            const val = userGrid[i];
+            const isFixed = puzzleGrid[i] !== 0;
+
+            if (isFixed) {
+                cell.classList.add('cell-fixed');
+            } else {
+                cell.onclick = () => selectCell(i);
+            }
+
+            if (i === selectedCellIndex) {
+                cell.classList.add('cell-selected');
+            }
+
+            // Hiển thị nội dung
+            if (val !== 0) {
+                cell.innerHTML = getDisplayValue(val);
+            }
+
+            // Check xung đột thời gian thực (visual hint)
+            if (!isFixed && val !== 0 && !isValidMove(i, val)) {
+                cell.classList.add('cell-error');
+            }
+
+            container.appendChild(cell);
+        }
+    }
+
+    function renderInputs() {
+        const container = document.getElementById('input-container');
+        container.innerHTML = '';
+        
+        // Nút Xóa (số 0)
+        const btnClear = document.createElement('button');
+        btnClear.className = 'input-btn bg-red-50 border-red-100 text-red-400';
+        btnClear.innerHTML = `<svg style="width:24px;height:24px" viewBox="0 0 24 24"><path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" /></svg>`;
+        btnClear.onclick = () => fillCell(0);
+        // container.appendChild(btnClear); // Nếu muốn có nút xóa riêng
+
+        // Nút 1-4
+        for(let i=1; i<=4; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'input-btn hover:bg-sky-50';
+            btn.innerHTML = getDisplayValue(i);
+            btn.onclick = () => fillCell(i);
+            container.appendChild(btn);
+        }
+    }
+
+    function getDisplayValue(val) {
+        if (currentMode === 'number') return val;
+        return SHAPES[val] || '';
+    }
+
+    // --- TƯƠNG TÁC ---
+
+    function setMode(mode) {
+        currentMode = mode;
+        
+        // Update UI Tabs
+        const btnNum = document.getElementById('btn-mode-num');
+        const btnShape = document.getElementById('btn-mode-shape');
+        
+        if(mode === 'number') {
+            btnNum.className = "flex-1 py-2 rounded-lg font-bold text-sm transition-all bg-white text-sky-700 shadow-sm";
+            btnShape.className = "flex-1 py-2 rounded-lg font-bold text-sm transition-all text-sky-400 hover:text-sky-600";
+        } else {
+            btnShape.className = "flex-1 py-2 rounded-lg font-bold text-sm transition-all bg-white text-sky-700 shadow-sm";
+            btnNum.className = "flex-1 py-2 rounded-lg font-bold text-sm transition-all text-sky-400 hover:text-sky-600";
+        }
+
+        renderBoard();
+        renderInputs();
+    }
+
+    function selectCell(index) {
+        if (puzzleGrid[index] !== 0) return; // Không chọn ô đề bài
+        selectedCellIndex = index;
+        renderBoard();
+        document.getElementById('message-area').textContent = "";
+    }
+
+    function fillCell(val) {
+        if (selectedCellIndex === -1) {
+            // Hiệu ứng nhắc chọn ô
+            document.getElementById('grid-container').classList.add('shake');
+            setTimeout(()=>document.getElementById('grid-container').classList.remove('shake'), 300);
+            return;
+        }
+        
+        userGrid[selectedCellIndex] = val;
+        renderBoard();
+        
+        // Tự động kiểm tra thắng
+        if(!userGrid.includes(0) && checkLogicAll()) {
+             document.getElementById('message-area').innerHTML = "<span class='text-green-500'>Tuyệt vời! Đúng hết rồi! 🎉</span>";
+        }
+    }
+
+    function isValidMove(index, value) {
+        const row = Math.floor(index / 4);
+        const col = index % 4;
+
+        // Check Row
+        for (let c = 0; c < 4; c++) {
+            let idx = row * 4 + c;
+            if (idx !== index && userGrid[idx] === value) return false;
+        }
+
+        // Check Col
+        for (let r = 0; r < 4; r++) {
+            let idx = r * 4 + col;
+            if (idx !== index && userGrid[idx] === value) return false;
+        }
+
+        // Check Block 2x2
+        const startR = Math.floor(row / 2) * 2;
+        const startC = Math.floor(col / 2) * 2;
+        for (let r = 0; r < 2; r++) {
+            for (let c = 0; c < 2; c++) {
+                let idx = (startR + r) * 4 + (startC + c);
+                if (idx !== index && userGrid[idx] === value) return false;
+            }
+        }
+        return true;
+    }
+
+    function checkLogicAll() {
+        for(let i=0; i<16; i++) {
+            if(userGrid[i] !== solutionGrid[i]) return false;
+        }
+        return true;
+    }
+
+    function checkWin() {
+        if(userGrid.includes(0)) {
+            document.getElementById('message-area').textContent = "Vẫn còn ô trống kìa! 🤔";
+            return;
+        }
+
+        let isCorrect = true;
+        for(let i=0; i<16; i++) {
+            if(userGrid[i] !== solutionGrid[i]) {
+                isCorrect = false;
+                break;
+            }
+        }
+
+        if(isCorrect) {
+            document.getElementById('message-area').innerHTML = "<span class='text-green-500'>Chính xác! Bé giỏi quá! 🌟</span>";
+        } else {
+            document.getElementById('message-area').textContent = "Có chỗ chưa đúng, kiểm tra lại màu đỏ nhé! 😅";
+        }
+    }
+
+    function newGame() {
+        solutionGrid = generateSolution();
+        puzzleGrid = createPuzzle(solutionGrid);
+        userGrid = [...puzzleGrid];
+        selectedCellIndex = -1;
+        document.getElementById('message-area').textContent = "";
+        renderBoard();
+        renderInputs();
+    }
+
+    // --- KHỞI CHẠY ---
+    newGame();
+    renderInputs(); // Render nút bấm lần đầu
+
+</script>
+</body>
+</html>
