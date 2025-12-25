@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Siêu Cổng Game Toán Học (21 Games)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f8fafc;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* Card nhỏ gọn hơn */
+        .menu-card {
+            transition: all 0.2s ease-in-out;
+            background: white;
+            border-radius: 0.75rem; /* Bo góc nhỏ */
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem; /* Padding nhỏ */
+            height: 100%;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-color: #cbd5e1;
+            z-index: 10;
+        }
+
+        /* Icon box nhỏ */
+        .icon-box {
+            width: 2.5rem; /* 40px */
+            height: 2.5rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem; /* Icon chữ nhỏ */
+            margin-bottom: 0.5rem;
+            transition: transform 0.2s;
+        }
+        
+        .menu-card:hover .icon-box {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .card-title {
+            font-size: 0.85rem; /* Chữ tiêu đề nhỏ */
+            line-height: 1.2;
+            color: #334155;
+            font-weight: 800;
+        }
+        
+        .card-desc {
+            font-size: 0.65rem; /* Mô tả rất nhỏ */
+            color: #94a3b8;
+            margin-top: 0.1rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+
+    <header class="text-center mb-6">
+        <h1 class="text-2xl md:text-3xl font-black text-slate-700 mb-1 uppercase tracking-tight">
+            Kho Báu Toán Học 💎
+        </h1>
+        <p class="text-slate-500 font-bold text-xs">Tổng hợp 21 trò chơi phát triển tư duy</p>
+    </header>
+
+    <div class="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+
+        <a href="include/phepsosanh.html" class="menu-card hover:border-emerald-400 group">
+            <div class="icon-box bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100">🐊</div>
+            <h3 class="card-title group-hover:text-emerald-700">So Sánh Số</h3>
+            <p class="card-desc">Lớn, Bé, Bằng</p>
+        </a>
+
+        <a href="include/phepcong.html" class="menu-card hover:border-lime-400 group">
+            <div class="icon-box bg-lime-50 text-lime-600 group-hover:bg-lime-100">🎲</div>
+            <h3 class="card-title group-hover:text-lime-700">Cộng Xúc Xắc</h3>
+            <p class="card-desc">Đếm chấm tính tổng</p>
+        </a>
+
+        <a href="include/tachsotrontram.html" class="menu-card hover:border-cyan-400 group">
+            <div class="icon-box bg-cyan-50 text-cyan-600 group-hover:bg-cyan-100">🏭</div>
+            <h3 class="card-title group-hover:text-cyan-700">Tách Số Tròn</h3>
+            <p class="card-desc">Hàng trăm, nghìn</p>
+        </a>
+
+        <a href="include/cong-tron-tram.html" class="menu-card hover:border-sky-400 group">
+            <div class="icon-box bg-blue-50 text-blue-600 group-hover:bg-blue-100">➕</div>
+            <h3 class="card-title group-hover:text-blue-700">Cộng Theo Hàng</h3>
+            <p class="card-desc">Tách số cộng nhanh</p>
+        </a>
+
+        <a href="include/phep-cong-chan-le.html" class="menu-card hover:border-amber-400 group">
+            <div class="icon-box bg-amber-50 text-amber-600 group-hover:bg-amber-100">⚖️</div>
+            <h3 class="card-title group-hover:text-amber-700">Quy Tắc Cộng</h3>
+            <p class="card-desc">Chẵn + Lẻ = ?</p>
+        </a>
+
+        <a href="include/chan-le.html" class="menu-card hover:border-teal-400 group">
+            <div class="icon-box bg-teal-50 text-teal-600 group-hover:bg-teal-100">🕵️</div>
+            <h3 class="card-title group-hover:text-teal-700">Chẵn & Lẻ</h3>
+            <p class="card-desc">Phân loại số</p>
+        </a>
+
+        <a href="include/itnhat-nhieunhat.html" class="menu-card hover:border-pink-400 group">
+            <div class="icon-box bg-pink-50 text-pink-600 group-hover:bg-pink-100">📊</div>
+            <h3 class="card-title group-hover:text-pink-700">Ít & Nhiều</h3>
+            <p class="card-desc">So sánh lượng</p>
+        </a>
+
+        <a href="include/timsolonnhat.html" class="menu-card hover:border-rose-400 group">
+            <div class="icon-box bg-rose-50 text-rose-600 group-hover:bg-rose-100">🔢</div>
+            <h3 class="card-title group-hover:text-rose-700">Sắp Xếp Số</h3>
+            <p class="card-desc">Lớn nhất & Bé nhất</p>
+        </a>
+
+        <a href="include/quyluatdem.html" class="menu-card hover:border-violet-400 group">
+            <div class="icon-box bg-violet-50 text-violet-600 group-hover:bg-violet-100">⏭️</div>
+            <h3 class="card-title group-hover:text-violet-700">Quy Luật Đếm</h3>
+            <p class="card-desc">Đếm cách quãng</p>
+        </a>
+
+        <a href="include/quyluat.html" class="menu-card hover:border-fuchsia-400 group">
+            <div class="icon-box bg-fuchsia-50 text-fuchsia-600 group-hover:bg-fuchsia-100">🌀</div>
+            <h3 class="card-title group-hover:text-fuchsia-700">Tìm Quy Luật</h3>
+            <p class="card-desc">Dãy số & Hình</p>
+        </a>
+
+        <a href="include/what comes next.html" class="menu-card hover:border-indigo-400 group">
+            <div class="icon-box bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100">🧠</div>
+            <h3 class="card-title group-hover:text-indigo-700">TIMO Logic</h3>
+            <p class="card-desc">Quy luật hình ảnh</p>
+        </a>
+
+        <a href="include/timso3chuso.html" class="menu-card hover:border-purple-400 group">
+            <div class="icon-box bg-purple-50 text-purple-600 group-hover:bg-purple-100">🎯</div>
+            <h3 class="card-title group-hover:text-purple-700">Thợ Săn Số</h3>
+            <p class="card-desc">Đếm số chữ số</p>
+        </a>
+
+        <a href="include/toancanbang.html" class="menu-card hover:border-yellow-400 group">
+            <div class="icon-box bg-yellow-50 text-yellow-600 group-hover:bg-yellow-100">⚖️</div>
+            <h3 class="card-title group-hover:text-yellow-700">Vua Cân Bằng</h3>
+            <p class="card-desc">Tư duy bắc cầu</p>
+        </a>
+
+        <a href="include/sodogiaitoan.html" class="menu-card hover:border-blue-400 group">
+            <div class="icon-box bg-blue-50 text-blue-600 group-hover:bg-blue-100">🧩</div>
+            <h3 class="card-title group-hover:text-blue-700">Sơ Đồ Toán</h3>
+            <p class="card-desc">Giải toán lời văn</p>
+        </a>
+
+        <a href="include/tachgop.html" class="menu-card hover:border-red-400 group">
+            <div class="icon-box bg-red-50 text-red-600 group-hover:bg-red-100">👐</div>
+            <h3 class="card-title group-hover:text-red-700">Tách Gộp Số</h3>
+            <p class="card-desc">Sơ đồ tách gộp</p>
+        </a>
+
+        <a href="include/phanso.html" class="menu-card hover:border-orange-400 group">
+            <div class="icon-box bg-orange-50 text-orange-600 group-hover:bg-orange-100">🍕</div>
+            <h3 class="card-title group-hover:text-orange-700">Phân Số Vui</h3>
+            <p class="card-desc">Chia bánh Pizza</p>
+        </a>
+
+        <a href="include/tham-tu-toan-hoc.html" class="menu-card hover:border-teal-400 group">
+            <div class="icon-box bg-teal-50 text-teal-600 group-hover:bg-teal-100">🔎</div>
+            <h3 class="card-title group-hover:text-teal-700">Thám Tử Hình</h3>
+            <p class="card-desc">Giải mã giá trị</p>
+        </a>
+
+        <a href="include/sudoku.html" class="menu-card hover:border-sky-400 group">
+            <div class="icon-box bg-sky-50 text-sky-600 group-hover:bg-sky-100">▦</div>
+            <h3 class="card-title group-hover:text-sky-700">Sudoku Vui</h3>
+            <p class="card-desc">Sắp xếp logic</p>
+        </a>
+
+        <a href="include/ngaymay.html" class="menu-card hover:border-red-300 group">
+            <div class="icon-box bg-red-50 text-red-500 group-hover:bg-red-100">📅</div>
+            <h3 class="card-title group-hover:text-red-600">Bé Xem Lịch</h3>
+            <p class="card-desc">Hôm nay thứ mấy?</p>
+        </a>
+
+        <a href="include/tuduyhinhanh.html" class="menu-card hover:border-slate-400 group">
+            <div class="icon-box bg-slate-100 text-slate-600 group-hover:bg-slate-200">🤖</div>
+            <h3 class="card-title group-hover:text-slate-900">Robot Tư Duy</h3>
+            <p class="card-desc">Lập trình đường đi</p>
+        </a>
+
+        <a href="include/timo.html" class="menu-card hover:border-green-400 group">
+            <div class="icon-box bg-green-50 text-green-600 group-hover:bg-green-100">🎓</div>
+            <h3 class="card-title group-hover:text-green-700">TIMO Tổng Hợp</h3>
+            <p class="card-desc">Đề thi thử</p>
+        </a>
+
+    </div>
+
+    <footer class="text-center mt-8 mb-4 text-slate-400 font-bold text-xs">
+        © 2024 Cổng Game Giáo Dục - Đủ 21 Trò Chơi
+    </footer>
+
+</body>
+</html>
